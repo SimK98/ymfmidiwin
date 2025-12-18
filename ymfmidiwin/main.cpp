@@ -112,6 +112,17 @@ const char* shortPath(const char* path)
 	return path;
 }
 
+std::string GetExeDirectory()
+{
+	char path[MAX_PATH];
+	GetModuleFileNameA(nullptr, path, MAX_PATH);
+
+	std::string fullPath(path);
+
+	size_t pos = fullPath.find_last_of("\\/");
+	return fullPath.substr(0, pos);
+}
+
 // ----------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
@@ -240,8 +251,14 @@ int main(int argc, char **argv)
 	
 	if (!player->loadPatches(patchPath))
 	{
-		fprintf(stderr, "couldn't load %s\n", patchPath);
-		exit(1);
+		// exe‚Æ“¯‚¶êŠ‚É‚ ‚ê‚Î‚»‚ê‚ðŽg‚¤
+		std::string path = GetExeDirectory();
+		path += "\\GENMIDI.wopl";
+		if (!player->loadPatches(path.c_str()))
+		{
+			fprintf(stderr, "couldn't load %s\n", patchPath);
+			exit(1);
+		}
 	}
 	
 	player->setLoop(g_looping);
