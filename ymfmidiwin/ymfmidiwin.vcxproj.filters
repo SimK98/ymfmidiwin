@@ -117,6 +117,9 @@
     <ClInclude Include="libsamplerate\samplerate.h">
       <Filter>ヘッダー ファイル\libsamplerate</Filter>
     </ClInclude>
+    <ClInclude Include="sequence_midiin.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sequence_hmi.cpp">
@@ -193,6 +196,9 @@
     </ClCompile>
     <ClCompile Include="libsamplerate\src_sinc.cpp">
       <Filter>ソース ファイル\libsamplerate</Filter>
+    </ClCompile>
+    <ClCompile Include="sequence_midiin.cpp">
+      <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -6,6 +6,7 @@
 #include "sequence_mid.h"
 #include "sequence_mus.h"
 #include "sequence_xmi.h"
+#include "sequence_midiin.h"
 
 // ----------------------------------------------------------------------------
 Sequence::~Sequence() {}
@@ -13,6 +14,15 @@ Sequence::~Sequence() {}
 // ----------------------------------------------------------------------------
 Sequence* Sequence::load(const char *path)
 {
+	if (_strnicmp(path, "//MIDIIN", 8) == 0) {
+		Sequence* seqmidiin = new SequenceMIDIIN(atol(path + 8));
+		if (seqmidiin)
+		{
+			seqmidiin->reset();
+		}
+		return seqmidiin;
+	}
+
 	FILE* file;
 	if (fopen_s(&file, path, "rb")) return nullptr;
 	
@@ -46,7 +56,9 @@ Sequence* Sequence::load(const uint8_t *data, size_t size)
 {
 	Sequence *seq = nullptr;
 
-	if (SequenceMUS::isValid(data, size))
+	if (SequenceMIDIIN::isValid(data, size))
+		seq = new SequenceMIDIIN();
+	else if (SequenceMUS::isValid(data, size))
 		seq = new SequenceMUS();
 	else if (SequenceMID::isValid(data, size))
 		seq = new SequenceMID();

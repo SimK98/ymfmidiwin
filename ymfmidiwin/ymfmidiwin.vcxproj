@@ -76,6 +76,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(ProjectDir)libsamplerate;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -83,6 +84,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(ProjectDir)libsamplerate;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -153,6 +155,7 @@
     <ClInclude Include="sequence_hmi.h" />
     <ClInclude Include="sequence_hmp.h" />
     <ClInclude Include="sequence_mid.h" />
+    <ClInclude Include="sequence_midiin.h" />
     <ClInclude Include="sequence_mus.h" />
     <ClInclude Include="sequence_xmi.h" />
     <ClInclude Include="win-c\getopt.h" />
@@ -184,6 +187,7 @@
     <ClCompile Include="sequence_hmi.cpp" />
     <ClCompile Include="sequence_hmp.cpp" />
     <ClCompile Include="sequence_mid.cpp" />
+    <ClCompile Include="sequence_midiin.cpp" />
     <ClCompile Include="sequence_mus.cpp" />
     <ClCompile Include="sequence_xmi.cpp" />
     <ClCompile Include="win-c\getopt.c" />
