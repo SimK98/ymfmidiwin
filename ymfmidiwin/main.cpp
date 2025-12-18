@@ -541,8 +541,8 @@ void AudioThread()
 
 	audioClient->Initialize(
 		AUDCLNT_SHAREMODE_SHARED,
-		0,
-		10000000,
+		AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+		2000000,
 		0,
 		mixFmt,
 		nullptr);
@@ -572,12 +572,23 @@ void AudioThread()
 
 	// --- FIFO ---
 	std::vector<float> fifo;
-	fifo.reserve(mixFmt->nSamplesPerSec * mixFmt->nChannels);
+	fifo.reserve(4 * bufferFrames * mixFmt->nChannels);
 
-	const int inBufferSamples = 512;
+	const int inBufferSamples = 1024;
 	const int outBufferSamples = (inBufferSamples * ratio) + 64;
 	std::vector<float> in(inBufferSamples * mixFmt->nChannels);
 	std::vector<float> out(outBufferSamples * mixFmt->nChannels);
+
+	HANDLE hAudioEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (hAudioEvent == NULL) {
+		g_running = false;
+		src_delete(src);
+		CoTaskMemFree(mixFmt);
+		CoUninitialize();
+		return;
+	}
+
+	audioClient->SetEventHandle(hAudioEvent);
 
 	audioClient->Start();
 
@@ -585,7 +596,10 @@ void AudioThread()
 	{
 		if (g_paused)
 		{
-			Sleep(10);
+			Sleep(100);
+			continue;
+		}
+		if (WaitForSingleObject(hAudioEvent, 1000) == WAIT_TIMEOUT) {
 			continue;
 		}
 
@@ -594,33 +608,34 @@ void AudioThread()
 
 		UINT32 framesAvailable = bufferFrames - padding;
 
-		// --- ”gŒ`¶¬ ---
-		player->generate(reinterpret_cast<float*>(in.data()), inBufferSamples);
+		if (fifo.size() / mixFmt->nChannels < framesAvailable)
+		{
+			// --- ”gŒ`¶¬ ---
+			player->generate(reinterpret_cast<float*>(in.data()), inBufferSamples);
 
-		if (!g_looping)
-			g_running &= !player->atEnd();
+			if (!g_looping)
+				g_running &= !player->atEnd();
 
-		// --- SR •ÏŠ· ---
-		SRC_DATA d{};
-		d.data_in = in.data();
-		d.input_frames = inBufferSamples;
-		d.data_out = out.data();
-		d.output_frames = outBufferSamples;
-		d.src_ratio = ratio;
+			// --- SR •ÏŠ· ---
+			SRC_DATA d{};
+			d.data_in = in.data();
+			d.input_frames = inBufferSamples;
+			d.data_out = out.data();
+			d.output_frames = outBufferSamples;
+			d.src_ratio = ratio;
 
-		src_process(src, &d);
+			src_process(src, &d);
 
-		fifo.insert(
-			fifo.end(),
-			out.data(),
-			out.data() + d.output_frames_gen * mixFmt->nChannels);
+			fifo.insert(
+				fifo.end(),
+				out.data(),
+				out.data() + d.output_frames_gen * mixFmt->nChannels);
+
+		}
 
 		// --- WASAPI o—Í ---
-		UINT32 fifoFrames =
-			(UINT32)(fifo.size() / mixFmt->nChannels);
-
-		UINT32 framesToWrite =
-			min(framesAvailable, fifoFrames);
+		UINT32 fifoFrames = (UINT32)(fifo.size() / mixFmt->nChannels);
+		UINT32 framesToWrite = min(framesAvailable, fifoFrames);
 
 		if (framesToWrite > 0)
 		{
@@ -637,14 +652,12 @@ void AudioThread()
 				fifo.begin(),
 				fifo.begin() + framesToWrite * mixFmt->nChannels);
 		}
-		else
-		{
-			Sleep(1);
-		}
 	}
 
 	audioClient->Stop();
 	src_delete(src);
+
+	CloseHandle(hAudioEvent);
 
 	CoTaskMemFree(mixFmt);
 	CoUninitialize();
