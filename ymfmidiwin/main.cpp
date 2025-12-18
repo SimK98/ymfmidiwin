@@ -18,12 +18,18 @@ extern "C" {
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "avrt.lib")
 #pragma comment(lib, "uuid.lib")
+
+#include <samplerate.h>
+
+#include <atomic>
+
 #endif
 
 #define INTERNAL_SR 50000
 
 #include "console.h"
 #include "player.h"
+#include <thread>
 
 #define VERSION "0.6.0"
 
@@ -31,7 +37,13 @@ static bool g_running = true;
 static bool g_paused = false;
 static bool g_looping = true;
 
+static OPLPlayer *g_player = nullptr;
+
+#ifdef USE_SDL
 static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
+#else
+static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive);
+#endif
 static void mainLoopWAV(OPLPlayer* player, const char* path);
 
 // ----------------------------------------------------------------------------
@@ -264,6 +276,7 @@ int main(int argc, char **argv)
 #ifdef USE_SDL
 		mainLoopSDL(player, bufferSize, interactive);
 #else
+		mainLoopWASAPI(player, bufferSize, interactive);
 #endif
 	}
 	
@@ -483,3 +496,213 @@ static void mainLoopWAV(OPLPlayer *player, const char *path)
 	
 	fclose(wav);
 }
+
+#ifndef USE_SDL
+// ----------------------------------------------------------------------------
+void AudioThread()
+{
+	auto player = g_player;
+	if (!g_player) return;
+
+	CoInitialize(nullptr);
+
+	// --- WASAPI ‰Šú‰» ---
+	IMMDeviceEnumerator* enumerator = nullptr;
+	IMMDevice* device = nullptr;
+	IAudioClient* audioClient = nullptr;
+	IAudioRenderClient* renderClient = nullptr;
+	WAVEFORMATEX* mixFmt = nullptr;
+
+	CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
+		CLSCTX_ALL, IID_PPV_ARGS(&enumerator));
+
+	enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+	device->Activate(__uuidof(IAudioClient),
+		CLSCTX_ALL, nullptr, (void**)&audioClient);
+
+	audioClient->GetMixFormat(&mixFmt);
+
+	audioClient->Initialize(
+		AUDCLNT_SHAREMODE_SHARED,
+		0,
+		10000000,
+		0,
+		mixFmt,
+		nullptr);
+
+	audioClient->GetService(IID_PPV_ARGS(&renderClient));
+
+	UINT32 bufferFrames = 0;
+	audioClient->GetBufferSize(&bufferFrames);
+
+	auto* ext = (WAVEFORMATEXTENSIBLE*)mixFmt;
+	if (ext->SubFormat != KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
+	{
+		CoTaskMemFree(mixFmt);
+		CoUninitialize();
+		return;
+	}
+
+	// --- libsamplerate ---
+	int err = 0;
+	SRC_STATE* src = src_new(
+		SRC_SINC_FASTEST,
+		mixFmt->nChannels,
+		&err);
+
+	double ratio =
+		double(mixFmt->nSamplesPerSec) / 50000.0;
+
+	// --- FIFO ---
+	std::vector<float> fifo;
+	fifo.reserve(mixFmt->nSamplesPerSec * mixFmt->nChannels);
+
+	const int inBufferSamples = 512;
+	const int outBufferSamples = (inBufferSamples * ratio) + 64;
+	std::vector<float> in(inBufferSamples * mixFmt->nChannels);
+	std::vector<float> out(outBufferSamples * mixFmt->nChannels);
+
+	audioClient->Start();
+
+	while (g_running)
+	{
+		if (g_paused)
+		{
+			Sleep(10);
+			continue;
+		}
+
+		UINT32 padding = 0;
+		audioClient->GetCurrentPadding(&padding);
+
+		UINT32 framesAvailable = bufferFrames - padding;
+
+		// --- ”gŒ`¶¬ ---
+		player->generate(reinterpret_cast<float*>(in.data()), inBufferSamples);
+
+		if (!g_looping)
+			g_running &= !player->atEnd();
+
+		// --- SR •ÏŠ· ---
+		SRC_DATA d{};
+		d.data_in = in.data();
+		d.input_frames = inBufferSamples;
+		d.data_out = out.data();
+		d.output_frames = outBufferSamples;
+		d.src_ratio = ratio;
+
+		src_process(src, &d);
+
+		fifo.insert(
+			fifo.end(),
+			out.data(),
+			out.data() + d.output_frames_gen * mixFmt->nChannels);
+
+		// --- WASAPI o—Í ---
+		UINT32 fifoFrames =
+			(UINT32)(fifo.size() / mixFmt->nChannels);
+
+		UINT32 framesToWrite =
+			min(framesAvailable, fifoFrames);
+
+		if (framesToWrite > 0)
+		{
+			BYTE* data = nullptr;
+			renderClient->GetBuffer(framesToWrite, &data);
+
+			memcpy(data,
+				fifo.data(),
+				framesToWrite * mixFmt->nBlockAlign);
+
+			renderClient->ReleaseBuffer(framesToWrite, 0);
+
+			fifo.erase(
+				fifo.begin(),
+				fifo.begin() + framesToWrite * mixFmt->nChannels);
+		}
+		else
+		{
+			Sleep(1);
+		}
+	}
+
+	audioClient->Stop();
+	src_delete(src);
+
+	CoTaskMemFree(mixFmt);
+	CoUninitialize();
+
+	g_running = false;
+}
+
+static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive)
+{
+	g_player = player;
+
+	std::thread audio(AudioThread);
+
+	player->setSampleRate(50000); // OPL original rate
+
+	if (interactive)
+	{
+		consolePos(2);
+		printf("\ncontrols: [p] pause, [r] restart, [tab] change view, [esc/q] quit\n");
+	}
+
+	unsigned displayType = 0;
+	while (g_running)
+	{
+		if (interactive)
+		{
+			if (player->numSongs() > 1)
+			{
+				consolePos(1);
+				printf("part %3u/%-3u (use left/right to change)\n",
+					player->songNum() + 1, player->numSongs());
+			}
+
+			consolePos(5);
+			if (!displayType)
+				player->displayChannels();
+			else
+				player->displayVoices();
+
+			switch (consoleGetKey())
+			{
+			case 0x1b:
+			case 'q':
+				quit(0);
+				continue;
+
+			case 'p':
+				g_paused ^= true;
+				break;
+
+			case 'r':
+				g_paused = false;
+				player->reset();
+				break;
+
+			case 0x09:
+				displayType ^= 1;
+				consolePos(5);
+				player->displayClear();
+				break;
+
+			case -'D':
+				if (player->songNum() > 0)
+					player->setSongNum(player->songNum() - 1);
+				break;
+
+			case -'C':
+				if (player->songNum() < player->numSongs() - 1)
+					player->setSongNum(player->songNum() + 1);
+				break;
+			}
+		}
+		Sleep(10);
+	}
+	g_running = 0;
+	audio.join();
+}
+#endif

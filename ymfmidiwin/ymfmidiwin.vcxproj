@@ -72,14 +72,14 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(ProjectDir)libsamplerate;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(ProjectDir)libsamplerate;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -142,6 +142,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="console.h" />
+    <ClInclude Include="libsamplerate\common.h" />
+    <ClInclude Include="libsamplerate\fastest_coeffs.h" />
+    <ClInclude Include="libsamplerate\high_qual_coeffs.h" />
+    <ClInclude Include="libsamplerate\mid_qual_coeffs.h" />
+    <ClInclude Include="libsamplerate\samplerate.h" />
     <ClInclude Include="patches.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="sequence.h" />
@@ -167,6 +172,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="console.cpp" />
+    <ClCompile Include="libsamplerate\samplerate.cpp" />
+    <ClCompile Include="libsamplerate\src_linear.cpp" />
+    <ClCompile Include="libsamplerate\src_sinc.cpp" />
+    <ClCompile Include="libsamplerate\src_zoh.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="patches.cpp" />
     <ClCompile Include="patchnames.cpp" />

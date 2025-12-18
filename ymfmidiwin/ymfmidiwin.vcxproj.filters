@@ -25,6 +25,12 @@
     <Filter Include="ヘッダー ファイル\ymfm">
       <UniqueIdentifier>{f213f7c8-0528-4f10-95be-2338543ee2e2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\libsamplerate">
+      <UniqueIdentifier>{9f4e12c8-71ba-4add-8330-722a52cd1930}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\libsamplerate">
+      <UniqueIdentifier>{60e25530-d2ec-48a6-b3df-c7d9af025fae}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="console.h">
@@ -96,6 +102,21 @@
     <ClInclude Include="ymfm\ymfm.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
+    <ClInclude Include="libsamplerate\common.h">
+      <Filter>ヘッダー ファイル\libsamplerate</Filter>
+    </ClInclude>
+    <ClInclude Include="libsamplerate\fastest_coeffs.h">
+      <Filter>ヘッダー ファイル\libsamplerate</Filter>
+    </ClInclude>
+    <ClInclude Include="libsamplerate\high_qual_coeffs.h">
+      <Filter>ヘッダー ファイル\libsamplerate</Filter>
+    </ClInclude>
+    <ClInclude Include="libsamplerate\mid_qual_coeffs.h">
+      <Filter>ヘッダー ファイル\libsamplerate</Filter>
+    </ClInclude>
+    <ClInclude Include="libsamplerate\samplerate.h">
+      <Filter>ヘッダー ファイル\libsamplerate</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sequence_hmi.cpp">
@@ -160,6 +181,18 @@
     </ClCompile>
     <ClCompile Include="ymfm\ymfm_pcm.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+    <ClCompile Include="libsamplerate\src_zoh.cpp">
+      <Filter>ソース ファイル\libsamplerate</Filter>
+    </ClCompile>
+    <ClCompile Include="libsamplerate\samplerate.cpp">
+      <Filter>ソース ファイル\libsamplerate</Filter>
+    </ClCompile>
+    <ClCompile Include="libsamplerate\src_linear.cpp">
+      <Filter>ソース ファイル\libsamplerate</Filter>
+    </ClCompile>
+    <ClCompile Include="libsamplerate\src_sinc.cpp">
+      <Filter>ソース ファイル\libsamplerate</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
