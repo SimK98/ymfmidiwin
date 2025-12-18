@@ -240,6 +240,14 @@ int main(int argc, char **argv)
 	songPath = argv[optind];
 	if (optind + 1 < argc)
 		patchPath = argv[optind + 1];
+	{
+		const char* fileext = strrchr(songPath, '.');
+		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0)) {
+			const char* tmp = patchPath;
+			patchPath = songPath;
+			songPath = tmp;
+		}
+	}
 	
 	auto player = new OPLPlayer(numChips, chipType);
 	
