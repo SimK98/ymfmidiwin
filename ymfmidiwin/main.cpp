@@ -242,7 +242,7 @@ int main(int argc, char **argv)
 		patchPath = argv[optind + 1];
 	{
 		const char* fileext = strrchr(songPath, '.');
-		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0)) {
+		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0 || _stricmp(fileext, ".op2") == 0)) {
 			const char* tmp = patchPath;
 			patchPath = songPath;
 			songPath = tmp;
@@ -304,9 +304,9 @@ int main(int argc, char **argv)
 		mainLoopWASAPI(player, bufferSize, interactive);
 #endif
 	}
-	
+
 	delete player;
-	
+
 	return 0;
 }
 

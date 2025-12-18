@@ -973,7 +973,7 @@ void OPLPlayer::midiNoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 void OPLPlayer::midiNoteOff(uint8_t channel, uint8_t note)
 {
 	note &= 0x7f;
-	
+
 //	printf("midiNoteOff: chn %u, note %u\n", channel, note);
 	OPLVoice *voice;
 	while ((voice = findVoice(channel, note)) != nullptr)
@@ -1060,6 +1060,19 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 		ch.rpn &= 0x7f;
 		ch.rpn |= (value << 7);
 		break;
+
+	case 120:
+	case 123:
+	{
+		for (auto& voice : m_voices)
+		{
+			if (voice.on)
+			{
+				silenceVoice(voice);
+			}
+		}
+		break;
+	}
 	
 	}
 }

@@ -64,7 +64,6 @@ void consoleOpen()
 void consoleClose()
 {
 #ifdef _WIN32
-	CloseHandle(g_console);
 	g_console = nullptr;
 #else
 	tcsetattr(STDIN_FILENO, TCSANOW, &g_attr);
