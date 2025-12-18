@@ -1,0 +1,165 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ソース ファイル">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="ヘッダー ファイル">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="リソース ファイル">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="ソース ファイル\win-c">
+      <UniqueIdentifier>{db2c1a2e-27d9-4733-a330-7d2b38fdf34e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\win-c">
+      <UniqueIdentifier>{fb1638b5-6048-441f-bbbb-159f43add593}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\ymfm">
+      <UniqueIdentifier>{c13acd63-b23f-4cea-bd9c-45ca517551d2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\ymfm">
+      <UniqueIdentifier>{f213f7c8-0528-4f10-95be-2338543ee2e2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="console.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="patches.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="player.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="sequence.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="sequence_hmi.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="sequence_hmp.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="sequence_mid.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="sequence_mus.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="sequence_xmi.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="win-c\getopt.h">
+      <Filter>ヘッダー ファイル\win-c</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_adpcm.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_fm.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_misc.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_opl.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_opm.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_opn.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_opq.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_opx.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_opz.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_pcm.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_ssg.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm_fm.ipp">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+    <ClInclude Include="ymfm\ymfm.h">
+      <Filter>ヘッダー ファイル\ymfm</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="sequence_hmi.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="sequence_hmp.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="sequence_mid.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="sequence_mus.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="sequence_xmi.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="console.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="patches.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="patchnames.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="player.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="sequence.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="win-c\getopt.c">
+      <Filter>ソース ファイル\win-c</Filter>
+    </ClCompile>
+    <ClCompile Include="ymfm\ymfm_ssg.cpp">
+      <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+    <ClCompile Include="ymfm\ymfm_adpcm.cpp">
+      <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+    <ClCompile Include="ymfm\ymfm_misc.cpp">
+      <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+    <ClCompile Include="ymfm\ymfm_opl.cpp">
+      <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+    <ClCompile Include="ymfm\ymfm_opm.cpp">
+      <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+    <ClCompile Include="ymfm\ymfm_opn.cpp">
+      <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+    <ClCompile Include="ymfm\ymfm_opq.cpp">
+      <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+    <ClCompile Include="ymfm\ymfm_opz.cpp">
+      <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+    <ClCompile Include="ymfm\ymfm_pcm.cpp">
+      <Filter>ソース ファイル\ymfm</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
