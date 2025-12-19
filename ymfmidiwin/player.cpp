@@ -4,6 +4,37 @@
 #include <cmath>
 #include <cstring>
 
+#if 1
+#include <windows.h>
+#undef	min
+#undef	TRACEOUT
+static void trace_fmt_ex(const char* fmt, ...)
+{
+	char stmp[2048];
+	va_list ap;
+	va_start(ap, fmt);
+	vsprintf_s(stmp, fmt, ap);
+	strcat_s(stmp, "\n");
+	va_end(ap);
+	OutputDebugStringA(stmp);
+}
+#define	TRACEOUT(s)	trace_fmt_ex s
+static void trace_fmt_exw(const WCHAR* fmt, ...)
+{
+	WCHAR stmp[2048];
+	va_list ap;
+	va_start(ap, fmt);
+	vswprintf_s(stmp, 2048, fmt, ap);
+	wcscat_s(stmp, L"\n");
+	va_end(ap);
+	OutputDebugStringW(stmp);
+}
+#define	TRACEOUTW(s)	trace_fmt_exw s
+#else
+#define	TRACEOUT(s)	(void)0
+#define	TRACEOUTW(s)	(void)0
+#endif	/* 1 */
+
 static const unsigned voice_num[18] = {
 	0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8,
 	0x100, 0x101, 0x102, 0x103, 0x104, 0x105, 0x106, 0x107, 0x108
@@ -47,7 +78,8 @@ OPLPlayer::OPLPlayer(int numChips, ChipType type)
 	setGain(1.0);
 	
 	m_looping = false;
-	
+	m_sleepMode = false;
+
 	reset();
 }
 
@@ -227,6 +259,14 @@ void OPLPlayer::updateMIDI()
 	{	
 		// time to update midi playback
 		m_samplesLeft = m_sequence->update(*this);
+		if (m_samplesLeft == UINT_MAX) {
+			m_samplesLeft = m_sampleRate / 5; // 長いこと来ていないので消音。200msecくらいずれてもいいでしょう
+			m_output.data[0] = 0;
+			m_output.data[1] = 0;
+			m_sleepMode = true;
+			return;
+		}
+		m_sleepMode = false;
 		for (auto& voice : m_voices)
 		{
 			if (voice.duration < UINT_MAX)
@@ -1021,7 +1061,11 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 		else if (m_midiType == YamahaXG)
 			ch.percussion = (value == 0x7f);
 		break;
-		
+
+	case 1: // モジュレーション(MSB/LSB)
+		// not supported yet 
+		break;
+
 	case 6:
 		if (ch.rpn == 0)
 		{
@@ -1040,12 +1084,28 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 		if (m_stereo)
 			updateChannelVoices(channel, &OPLPlayer::updatePanning);
 		break;
-	
+
+	case 11: // エクスプレッション(MSB/LSB)
+		// not supported yet 
+		break;
+
 	case 32:
 		if (m_midiType == YamahaXG || m_midiType == GeneralMIDI2)
 			ch.bank = value;
 		break;
-	
+
+	case 64: // ダンパーペダル（サステインペダル）
+		// not supported yet 
+		break;
+
+	case 91: // エフェクト1 デプス
+	case 92: // エフェクト2 デプス
+	case 93: // エフェクト3 デプス
+	case 94: // エフェクト4 デプス
+	case 95: // エフェクト5 デプス
+		// not supported yet 
+		break;
+
 	case 98:
 	case 99:
 		ch.rpn = 0x3fff;
@@ -1061,6 +1121,18 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 		ch.rpn |= (value << 7);
 		break;
 
+	case 121: // リセットオールコントローラー
+		ch.percussion = false;
+		ch.bank = 0;
+		ch.patchNum = 0;
+		ch.volume = 127;
+		ch.pan = 64;
+		ch.basePitch = 0.0; // pitch wheel position
+		ch.pitch = 1.0; // frequency multiplier
+		ch.rpn = 0x3fff;
+		ch.bendRange = 2;
+		break;
+
 	case 120:
 	case 123:
 	{
@@ -1071,6 +1143,9 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 				silenceVoice(voice);
 			}
 		}
+		break;
+	default:
+		TRACEOUT(("unknown control command!!! %d(%02x)", control, control));
 		break;
 	}
 	

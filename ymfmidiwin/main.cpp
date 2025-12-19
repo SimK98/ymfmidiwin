@@ -123,6 +123,22 @@ std::string GetExeDirectory()
 	return fullPath.substr(0, pos);
 }
 
+BOOL WINAPI ConsoleHandler(DWORD ctrlType)
+{
+	switch (ctrlType)
+	{
+	case CTRL_C_EVENT:
+	case CTRL_BREAK_EVENT:
+	case CTRL_CLOSE_EVENT:
+	case CTRL_LOGOFF_EVENT:
+	case CTRL_SHUTDOWN_EVENT:
+		g_running = false;
+		return TRUE;   // èàóùÇµÇΩÇ±Ç∆Çí ím
+	default:
+		return FALSE;
+	}
+}
+
 // ----------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
@@ -298,6 +314,7 @@ int main(int argc, char **argv)
 	}
 	else
 	{
+		SetConsoleCtrlHandler(ConsoleHandler, TRUE);
 #ifdef USE_SDL
 		mainLoopSDL(player, bufferSize, interactive);
 #else
@@ -580,10 +597,11 @@ void AudioThread()
 
 	// --- FIFO ---
 	std::vector<float> fifo;
-	fifo.reserve(4 * bufferFrames * mixFmt->nChannels);
+	const int fifosamples = bufferFrames;
+	fifo.reserve(fifosamples * mixFmt->nChannels);
 
-	const int inBufferSamples = 1024;
-	const int outBufferSamples = (inBufferSamples * ratio) + 64;
+	const int outBufferSamples = fifosamples + 64;
+	const int inBufferSamples = (int)(fifosamples / ratio);
 	std::vector<float> in(inBufferSamples * mixFmt->nChannels);
 	std::vector<float> out(outBufferSamples * mixFmt->nChannels);
 
@@ -600,14 +618,12 @@ void AudioThread()
 
 	audioClient->Start();
 
+	bool lastSleepMode = false;
 	while (g_running)
 	{
 		if (g_paused)
 		{
 			Sleep(100);
-			continue;
-		}
-		if (WaitForSingleObject(hAudioEvent, 1000) == WAIT_TIMEOUT) {
 			continue;
 		}
 
@@ -616,29 +632,47 @@ void AudioThread()
 
 		UINT32 framesAvailable = bufferFrames - padding;
 
-		if (fifo.size() / mixFmt->nChannels < framesAvailable)
+		int sampleremain = fifosamples - fifo.size();
+		if (sampleremain > 0)
 		{
 			// --- îgå`ê∂ê¨ ---
-			player->generate(reinterpret_cast<float*>(in.data()), inBufferSamples);
+			int samples = min(inBufferSamples, sampleremain);
+			player->generate(reinterpret_cast<float*>(in.data()), samples);
 
 			if (!g_looping)
 				g_running &= !player->atEnd();
 
-			// --- SR ïœä∑ ---
-			SRC_DATA d{};
-			d.data_in = in.data();
-			d.input_frames = inBufferSamples;
-			d.data_out = out.data();
-			d.output_frames = outBufferSamples;
-			d.src_ratio = ratio;
+			if (!player->isSleepMode()) {
+				if (lastSleepMode) {
+					lastSleepMode = false;
+				}
 
-			src_process(src, &d);
+				// --- SR ïœä∑ ---
+				SRC_DATA d{};
+				d.data_in = in.data();
+				d.input_frames = samples;
+				d.data_out = out.data();
+				d.output_frames = outBufferSamples;
+				d.src_ratio = ratio;
 
-			fifo.insert(
-				fifo.end(),
-				out.data(),
-				out.data() + d.output_frames_gen * mixFmt->nChannels);
+				src_process(src, &d);
 
+				fifo.insert(
+					fifo.end(),
+					out.data(),
+					out.data() + d.output_frames_gen * mixFmt->nChannels);
+			}
+			else {
+				if (!lastSleepMode) {
+					lastSleepMode = true;
+				}
+				Sleep(100);
+				continue;
+			}
+		}
+
+		if (WaitForSingleObject(hAudioEvent, 200) == WAIT_TIMEOUT) {
+			continue;
 		}
 
 		// --- WASAPI èoóÕ ---
@@ -740,7 +774,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive)
 		}
 		Sleep(10);
 	}
-	g_running = 0;
+	g_running = false;
 	audio.join();
 }
 #endif

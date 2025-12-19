@@ -7,14 +7,53 @@
 #define READ_U24BE(data, pos) ((data[pos] << 16) | (data[pos+1] << 8) | data[pos+2])
 #define READ_U32BE(data, pos) ((data[pos] << 24) | (data[pos+1] << 16) | (data[pos+2] << 8) | data[pos+3])
 
+#if 1
+#include <windows.h>
+#undef	min
+#undef	TRACEOUT
+static void trace_fmt_ex(const char* fmt, ...)
+{
+	char stmp[2048];
+	va_list ap;
+	va_start(ap, fmt);
+	vsprintf_s(stmp, fmt, ap);
+	strcat_s(stmp, "\n");
+	va_end(ap);
+	OutputDebugStringA(stmp);
+}
+#define	TRACEOUT(s)	trace_fmt_ex s
+static void trace_fmt_exw(const WCHAR* fmt, ...)
+{
+	WCHAR stmp[2048];
+	va_list ap;
+	va_start(ap, fmt);
+	vswprintf_s(stmp, 2048, fmt, ap);
+	wcscat_s(stmp, L"\n");
+	va_end(ap);
+	OutputDebugStringW(stmp);
+}
+#define	TRACEOUTW(s)	trace_fmt_exw s
+#else
+#define	TRACEOUT(s)	(void)0
+#define	TRACEOUTW(s)	(void)0
+#endif	/* 1 */
+
 
 // ----------------------------------------------------------------------------
-SequenceMIDIIN::SequenceMIDIIN()
-	: m_portnum(0), Sequence()
+SequenceMIDIIN::SequenceMIDIIN() : 
+	m_portnum(0),
+	m_currentTime(0),
+	m_currentTimeReal(0),
+	m_lastEmpty(false),
+	Sequence()
 {
 }
-SequenceMIDIIN::SequenceMIDIIN(int portnum)
-	: Sequence()
+SequenceMIDIIN::SequenceMIDIIN(int portnum) :
+	m_portnum(0),
+	m_currentTime(0),
+	m_currentTimeReal(0),
+	m_lastEmpty(false),
+	Sequence()
 {
 	m_portnum = portnum;
 }
@@ -56,6 +95,8 @@ void SequenceMIDIIN::reset()
         MessageBox(nullptr, L"MIDI IN open failed", L"Error", MB_OK);
         return;
     }
+	m_currentTime = 0;
+	m_currentTimeReal = GetTickCount64();
 }
 
 // ----------------------------------------------------------------------------
@@ -78,11 +119,33 @@ unsigned SequenceMIDIIN::numSongs() const
 // ----------------------------------------------------------------------------
 uint32_t SequenceMIDIIN::update(OPLPlayer& player)
 {
-	std::vector<MidiMessage> messages;
-	m_midiIn.fetchMessages(messages);
+	MidiMessage m;
+	size_t count = m_midiIn.getMessageCount();
+	uint32_t nextTimestamp = m_midiIn.getNextTimestamp();
 
-	for (auto& m : messages)
-	{
+	if (count == 0) { // 空っぽなら待機モード 
+		ULONGLONG curTimeReal = GetTickCount64();
+		if (curTimeReal - m_currentTimeReal > 30000) {
+			// スリープモード
+			return UINT_MAX;
+		}
+		else if (curTimeReal - m_currentTimeReal > 10000) {
+			// 10秒来なければ100msecくらいずれてもいいでしょう
+			m_lastEmpty = true;
+			return player.sampleRate() / 10;
+		}
+		else if (curTimeReal - m_currentTimeReal > 1000) {
+			// 1秒来なければ10msecくらいずれてもいいでしょう
+			return player.sampleRate() / 100;
+		}
+		else {
+			// 次が来るかも知れないので最短待機
+			return 1;
+		}
+	}
+	else {
+		MidiMessage m;
+		m_midiIn.fetchOneMessage(m);
 		BYTE status;
 		BYTE data[2];
 		status = m.data & 0xFF;
@@ -118,9 +181,19 @@ uint32_t SequenceMIDIIN::update(OPLPlayer& player)
 			break;
 		}
 		}
-	}
 
-	return 1;
+		m_currentTime = m.timestamp;
+		m_currentTimeReal = GetTickCount64();
+		if (nextTimestamp != UINT_MAX) {
+			// 次のタイミングを返す
+			DWORD nextTime = nextTimestamp - m_currentTime;
+			return (uint32_t)((uint64_t)player.sampleRate() * nextTime / 1000);
+		}
+		else {
+			// 次が来るかも知れないので最短待機
+			return 1;
+		}
+	}
 }
 
 // ----------------------------------------------------------------------------

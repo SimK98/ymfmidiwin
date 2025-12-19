@@ -49,7 +49,7 @@ struct MidiMessage
 struct MidiSysEx
 {
     std::vector<BYTE> data;
-    DWORD timestamp; // ŽóMŠ®—¹Žž
+    DWORD timestamp; // ms
 };
 
 class MidiFifo
@@ -70,6 +70,9 @@ public:
         size_t w = writeIndex.load(std::memory_order_acquire);
 
         size_t count = w - r;
+        if (count == 0) return 0;
+        
+        if (count > 10) TRACEOUT(("%d", count));
         out.reserve(out.size() + count);
 
         for (size_t i = 0; i < count; ++i)
@@ -77,6 +80,39 @@ public:
 
         readIndex.store(w, std::memory_order_release);
         return count;
+    }
+
+    size_t popOne(MidiMessage& out)
+    {
+        size_t r = readIndex.load(std::memory_order_relaxed);
+        size_t w = writeIndex.load(std::memory_order_acquire);
+
+        size_t count = w - r;
+        if (count == 0) return 0;
+
+        out = buffer[r % Capacity];
+        readIndex.store(r + 1, std::memory_order_release);
+
+        return 1;
+    }
+
+    uint32_t getNextTimestamp()
+    {
+        size_t r = readIndex.load(std::memory_order_relaxed);
+        size_t w = writeIndex.load(std::memory_order_acquire);
+
+        size_t count = w - r;
+        if (count == 0) return UINT_MAX;
+
+        return buffer[r % Capacity].timestamp;
+    }
+
+    uint32_t getMessageCount()
+    {
+        size_t r = readIndex.load(std::memory_order_relaxed);
+        size_t w = writeIndex.load(std::memory_order_acquire);
+
+        return w - r;
     }
 
 private:
@@ -131,6 +167,7 @@ public:
             close();
         }
 
+        m_closing = false;
         MMRESULT r = midiInOpen(
             &m_hMidiIn,
             portnum,
@@ -192,6 +229,18 @@ public:
     {
         return m_fifo.popAll(out);
     }
+    size_t fetchOneMessage(MidiMessage& out)
+    {
+        return m_fifo.popOne(out);
+    }
+    uint32_t getNextTimestamp()
+    {
+        return m_fifo.getNextTimestamp();
+    }
+    uint32_t getMessageCount()
+    {
+        return m_fifo.getMessageCount();
+    }
     size_t fetchSysEx(MidiSysEx& out)
     {
         return m_sysexFifo.popOne(out);
@@ -211,6 +260,8 @@ private:
     {
         MidiInDevice* self = reinterpret_cast<MidiInDevice*>(dwInstance);
 
+        if (self->m_closing) return;
+
         switch (wMsg)
         {
         case MIM_DATA:
@@ -218,10 +269,7 @@ private:
             MidiMessage msg;
             msg.data = static_cast<DWORD>(dwParam1);
             msg.timestamp = static_cast<DWORD>(dwParam2);
-            TRACEOUT(("short:%08x", msg.data));
-            if (msg.data == 0x007bbf) {
-                TRACEOUT(("CHECK!!"));
-            }
+            //TRACEOUT(("short:%08x", msg.data));
             self->m_fifo.push(msg);
             break;
         }
@@ -237,7 +285,7 @@ private:
                     reinterpret_cast<BYTE*>(hdr->lpData),
                     reinterpret_cast<BYTE*>(hdr->lpData)
                     + hdr->dwBytesRecorded);
-                TRACEOUT(("long:%02x", sx.data.at(0)));
+                //TRACEOUT(("long:%02x", sx.data.at(0)));
 
                 self->m_sysexFifo.push(std::move(sx));
 
@@ -299,6 +347,10 @@ private:
     bool metaEvent(OPLPlayer& player, MidiSysEx sysex);
 
 	MidiInDevice m_midiIn;
+
+    DWORD  m_currentTime;
+    ULONGLONG  m_currentTimeReal;
+    bool  m_lastEmpty;
 };
 
 #endif // __SEQUENCE_MIDIIN_H

@@ -136,6 +136,8 @@ public:
 	ChipType chipType() const { return m_chipType; }
 	bool stereo() const { return m_stereo; }
 	const std::string& patchName(uint8_t num) { return m_patches[num].name; }
+
+	bool isSleepMode() const { return m_sleepMode; }
 	
 private:
 	//static const unsigned masterClock = 14318181;
@@ -220,6 +222,7 @@ private:
 	
 	bool m_looping;
 	bool m_timePassed;
+	bool m_sleepMode;
 	
 	MIDIChannel m_channels[16];
 	std::vector<OPLVoice> m_voices;
