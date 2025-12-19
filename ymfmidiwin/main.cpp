@@ -192,7 +192,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 		case ID_TRAY_MIDIPANIC:
 			if (g_player) {
-				g_player->reset();
+				g_player->resetOPL();
 			}
 			return 0;
 		case ID_TRAY_ABOUT:

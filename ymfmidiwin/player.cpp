@@ -548,6 +548,36 @@ void OPLPlayer::reset()
 }
 
 // ----------------------------------------------------------------------------
+void OPLPlayer::resetOPL()
+{
+	// reset MIDI channel and OPL voice status
+	m_midiType = GeneralMIDI;
+	for (int i = 0; i < 16; i++)
+	{
+		m_channels[i].percussion = false;
+		m_channels[i].bank = 0;
+		m_channels[i].patchNum = 0;
+		m_channels[i].volume = 127;
+		m_channels[i].pan = 64;
+		m_channels[i].basePitch = 0.0; // pitch wheel position
+		m_channels[i].pitch = 1.0; // frequency multiplier
+		m_channels[i].rpn = 0x3fff;
+		m_channels[i].bendRange = 2;
+	}
+	m_channels[9].percussion = true;
+	for (auto& voice : m_voices)
+	{
+		if (voice.on)
+		{
+			silenceVoice(voice);
+		}
+	}
+
+	m_samplesLeft = 0;
+	m_timePassed = 0;
+}
+
+// ----------------------------------------------------------------------------
 void OPLPlayer::runSamples(int chip, unsigned count)
 {
 	// add some delay between register writes where needed
@@ -1168,6 +1198,7 @@ void OPLPlayer::midiSysEx(const uint8_t *data, uint32_t length)
 	{
 		if (length == 5 && data[1] == 0x7f && data[2] == 0x09)
 		{
+			resetOPL(); // まずリセット
 			if (data[3] == 0x01)
 				m_midiType = GeneralMIDI;
 			else if (data[3] == 0x03)
@@ -1177,6 +1208,7 @@ void OPLPlayer::midiSysEx(const uint8_t *data, uint32_t length)
 	else if (data[0] == 0x41 && length >= 10 // Roland
 	         && data[2] == 0x42 && data[3] == 0x12)
 	{
+		resetOPL(); // まずリセット
 		// if we received one of these, assume GS mode
 		// (some MIDIs seem to e.g. send drum map messages without a GS reset)
 		m_midiType = RolandGS;

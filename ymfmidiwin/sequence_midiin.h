@@ -179,6 +179,7 @@ public:
         if (r != MMSYSERR_NOERROR)
             return false;
 
+        midiInStop(m_hMidiIn); // “®‚¢‚Ä‚¢‚é‚Í‚¸‚Í‚È‚¢‚¯‚Ç”O‚Ì‚½‚ß
         midiInReset(m_hMidiIn);
         prepareSysExBuffers();
         midiInStart(m_hMidiIn);

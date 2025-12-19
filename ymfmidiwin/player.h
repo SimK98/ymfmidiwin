@@ -105,6 +105,8 @@ public:
 	
 	// reset OPL and midi file
 	void reset();
+	// reset OPL only
+	void resetOPL();
 	// reached end of song?
 	bool atEnd() const;
 	// song selection (for files with multiple songs)

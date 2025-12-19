@@ -220,19 +220,28 @@ bool SequenceMIDIIN::metaEvent(OPLPlayer& player, MidiSysEx sysex)
 	BYTE exstatus = sysex.data[0];
 	BYTE *exdata = sysex.data.data() + 1;
 	int exdatasize = sysex.data.size() - 1;
+	BYTE gmReset[] = { 0x7E, 0x7F, 0x09, 0x01, 0xF7 };
+	BYTE gsReset[] = { 0x41, 0x10, 0x42, 0x12, 0x40, 0x00, 0x7F, 0x00, 0x41, 0xF7 };
+
+	//if (exstatus == 0xF0 && exdatasize == sizeof(gmReset) &&
+	//	memcmp(exdata, gmReset, sizeof(gmReset)) == 0) 
+	//{
+	//	// GM Reset
+	//	player.reset();
+	//}
+	//if (exstatus == 0xF0 && exdatasize == sizeof(gsReset) &&
+	//	memcmp(exdata, gsReset, sizeof(gsReset)) == 0) 
+	//{
+	//	// GS Reset
+	//	player.reset();
+	//}
+
 	int pos = 0;
 	if (exstatus != 0xFF)
 	{
 		len = readVLQ(exdata, pos, exdatasize);
-		if (pos + len < exdatasize)
-		{
-			if (exstatus == 0xf0)
-				player.midiSysEx(exdata + pos, len);
-		}
-		else
-		{
-			return false;
-		}
+		if (exstatus == 0xf0)
+			player.midiSysEx(exdata, exdatasize);
 	}
 	else
 	{
@@ -240,7 +249,7 @@ bool SequenceMIDIIN::metaEvent(OPLPlayer& player, MidiSysEx sysex)
 		len = readVLQ(exdata, pos, exdatasize);
 
 		// end-of-track marker (or data just ran out)
-		if (data == 0x2F || (pos + len >= exdatasize))
+		if (data == 0x2F)
 		{
 			return false;
 		}
