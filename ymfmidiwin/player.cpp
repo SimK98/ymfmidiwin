@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstring>
 
-#if 1
+#if 0
 #include <windows.h>
 #undef	min
 #undef	TRACEOUT

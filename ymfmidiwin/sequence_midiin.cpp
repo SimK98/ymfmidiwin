@@ -7,7 +7,7 @@
 #define READ_U24BE(data, pos) ((data[pos] << 16) | (data[pos+1] << 8) | data[pos+2])
 #define READ_U32BE(data, pos) ((data[pos] << 24) | (data[pos+1] << 16) | (data[pos+2] << 8) | data[pos+3])
 
-#if 1
+#if 0
 #include <windows.h>
 #undef	min
 #undef	TRACEOUT

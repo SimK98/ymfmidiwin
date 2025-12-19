@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <getopt.h>
 
+#include "resource.h"
+
 #ifdef USE_SDL
 #define SDL_MAIN_HANDLED
 extern "C" {
@@ -25,6 +27,11 @@ extern "C" {
 
 #endif
 
+#define WM_TRAYICON   (WM_USER + 1)
+#define ID_TRAY_EXIT		1001
+#define ID_TRAY_MIDIPANIC	1002
+#define ID_TRAY_ABOUT		1003
+
 #define INTERNAL_SR 50000
 
 #include "console.h"
@@ -32,6 +39,9 @@ extern "C" {
 #include <thread>
 
 #define VERSION "0.6.0"
+
+static HINSTANCE g_hInst = nullptr;
+static HICON g_hIcon = nullptr;
 
 static bool g_running = true;
 static bool g_paused = false;
@@ -42,7 +52,7 @@ static OPLPlayer *g_player = nullptr;
 #ifdef USE_SDL
 static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
 #else
-static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive);
+static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, bool traymode);
 #endif
 static void mainLoopWAV(OPLPlayer* player, const char* path);
 
@@ -71,6 +81,8 @@ void usage()
 	"  -r / --rate <num>       set sample rate (default 44100)\n"
 	"  -f / --filter <num>     set highpass cutoff in Hz (default 5.0)\n"
 	"\n"
+	"  -t / --tray             resides in the task tray\n"
+	"\n"
 	);
 	
 	exit(1);
@@ -89,6 +101,7 @@ static const option options[] =
 	{"gain",      1, nullptr, 'g'},
 	{"rate",      1, nullptr, 'r'},
 	{"filter",    1, nullptr, 'f'},
+	{"tray",      0, nullptr, 't'},
 	{0}
 };
 
@@ -139,12 +152,115 @@ BOOL WINAPI ConsoleHandler(DWORD ctrlType)
 	}
 }
 
+LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch (msg)
+	{
+	case WM_TRAYICON:
+		switch (lParam)
+		{
+		case WM_RBUTTONUP:
+		{
+			POINT pt;
+			GetCursorPos(&pt);
+
+			HMENU hMenu = CreatePopupMenu();
+			AppendMenu(hMenu, MF_STRING, ID_TRAY_MIDIPANIC, TEXT("MIDI Panic"));
+			AppendMenu(hMenu, MF_STRING, ID_TRAY_ABOUT, TEXT("About..."));
+			AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
+			AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT, TEXT("Exit"));
+
+			// これを呼ばないとメニューが即消える
+			SetForegroundWindow(hwnd);
+
+			TrackPopupMenu(
+				hMenu,
+				TPM_RIGHTBUTTON,
+				pt.x, pt.y,
+				0,
+				hwnd,
+				nullptr);
+
+			DestroyMenu(hMenu);
+			break;
+		}
+		}
+		return 0;
+
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case ID_TRAY_MIDIPANIC:
+			if (g_player) {
+				g_player->reset();
+			}
+			return 0;
+		case ID_TRAY_ABOUT:
+			MessageBox(hwnd, TEXT("ymfmidi for Windows v" VERSION " - " __DATE__ "\nThis software includes components licensed under the BSD License. See LICENSE.txt for details."), TEXT("About"), MB_OK | MB_ICONINFORMATION);
+			return 0;
+		case ID_TRAY_EXIT:
+			g_running = false;
+			PostQuitMessage(0);
+			return 0;
+		}
+		break;
+
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
+	}
+
+	return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+HWND CreateHiddenWindow(HINSTANCE hInst)
+{
+	WNDCLASS wc{};
+	wc.lpfnWndProc = TrayWndProc;
+	wc.hInstance = hInst;
+	wc.lpszClassName = TEXT("ymfmidiwin_tray");
+
+	RegisterClass(&wc);
+
+	return CreateWindow(
+		wc.lpszClassName,
+		TEXT(""),
+		0,
+		0, 0, 0, 0,
+		HWND_MESSAGE,
+		nullptr,
+		hInst,
+		nullptr);
+}
+
+bool RegisterTrayIcon(HWND hwnd)
+{
+	NOTIFYICONDATA nid{};
+	nid.cbSize = sizeof(nid);
+	nid.hWnd = hwnd;
+	nid.uID = 1;
+	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+	nid.uCallbackMessage = WM_TRAYICON;
+
+	g_hIcon = nid.hIcon = (HICON)LoadImage(
+		g_hInst,
+		MAKEINTRESOURCE(IDI_APPICON),
+		IMAGE_ICON,
+		GetSystemMetrics(SM_CXSMICON),
+		GetSystemMetrics(SM_CYSMICON),
+		LR_DEFAULTCOLOR);
+	lstrcpy(nid.szTip, TEXT("ymfmidi for Windows"));
+
+	return Shell_NotifyIcon(NIM_ADD, &nid) != FALSE;
+}
+
 // ----------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
 	setvbuf(stdout, NULL, _IONBF, 0);
 	
 	bool interactive = true;
+	bool traymode = false;
 	
 	const char* songPath;
 	const char* patchPath = "GENMIDI.wopl";
@@ -158,10 +274,10 @@ int main(int argc, char **argv)
 	unsigned songNum = 0;
 	bool stereo = true;
 
-	printf("ymfmidi v" VERSION " - " __DATE__ "\n");
+	printf("ymfmidi for Windows v" VERSION " - " __DATE__ "\n");
 
 	char opt;
-	while ((opt = getopt_long(argc, argv, ":hq1s:o:c:n:mb:g:r:f:", options, nullptr)) != -1)
+	while ((opt = getopt_long(argc, argv, ":hq1s:o:c:n:mb:g:r:f:t", options, nullptr)) != -1)
 	{
 		switch (opt)
 		{
@@ -247,12 +363,17 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 			break;
+
+		case 't':
+			// タスクトレイ常駐モード
+			traymode = true;
+			break;
 		}
 	}
 	
 	if (optind >= argc)
 		usage();
-	
+
 	songPath = argv[optind];
 	if (optind + 1 < argc)
 		patchPath = argv[optind + 1];
@@ -318,7 +439,7 @@ int main(int argc, char **argv)
 #ifdef USE_SDL
 		mainLoopSDL(player, bufferSize, interactive);
 #else
-		mainLoopWASAPI(player, bufferSize, interactive);
+		mainLoopWASAPI(player, bufferSize, interactive, traymode);
 #endif
 	}
 
@@ -707,15 +828,32 @@ void AudioThread()
 	g_running = false;
 }
 
-static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive)
+static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, bool traymode)
 {
+	HWND hwnd = NULL;
+
 	g_player = player;
 
 	std::thread audio(AudioThread);
 
 	player->setSampleRate(50000); // OPL original rate
 
-	if (interactive)
+	if (traymode) {
+		g_hInst = GetModuleHandle(nullptr);
+
+		hwnd = CreateHiddenWindow(g_hInst);
+		if (!hwnd)
+			return;
+
+		if (RegisterTrayIcon(hwnd)) {
+			// コンソールを隠す
+			ShowWindow(GetConsoleWindow(), SW_HIDE);
+		}
+		else {
+			traymode = false;
+		}
+	}
+	if (interactive && !traymode)
 	{
 		consolePos(2);
 		printf("\ncontrols: [p] pause, [r] restart, [tab] change view, [esc/q] quit\n");
@@ -724,55 +862,78 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive)
 	unsigned displayType = 0;
 	while (g_running)
 	{
-		if (interactive)
-		{
-			if (player->numSongs() > 1)
+		if (traymode) {
+			MSG msg;
+			while (GetMessage(&msg, nullptr, 0, 0))
 			{
-				consolePos(1);
-				printf("part %3u/%-3u (use left/right to change)\n",
-					player->songNum() + 1, player->numSongs());
-			}
-
-			consolePos(5);
-			if (!displayType)
-				player->displayChannels();
-			else
-				player->displayVoices();
-
-			switch (consoleGetKey())
-			{
-			case 0x1b:
-			case 'q':
-				quit(0);
-				continue;
-
-			case 'p':
-				g_paused ^= true;
-				break;
-
-			case 'r':
-				g_paused = false;
-				player->reset();
-				break;
-
-			case 0x09:
-				displayType ^= 1;
-				consolePos(5);
-				player->displayClear();
-				break;
-
-			case -'D':
-				if (player->songNum() > 0)
-					player->setSongNum(player->songNum() - 1);
-				break;
-
-			case -'C':
-				if (player->songNum() < player->numSongs() - 1)
-					player->setSongNum(player->songNum() + 1);
-				break;
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
 			}
 		}
-		Sleep(10);
+		else {
+			if (interactive)
+			{
+				if (player->numSongs() > 1)
+				{
+					consolePos(1);
+					printf("part %3u/%-3u (use left/right to change)\n",
+						player->songNum() + 1, player->numSongs());
+				}
+
+				consolePos(5);
+				if (!displayType)
+					player->displayChannels();
+				else
+					player->displayVoices();
+
+				switch (consoleGetKey())
+				{
+				case 0x1b:
+				case 'q':
+					quit(0);
+					continue;
+
+				case 'p':
+					g_paused ^= true;
+					break;
+
+				case 'r':
+					g_paused = false;
+					player->reset();
+					break;
+
+				case 0x09:
+					displayType ^= 1;
+					consolePos(5);
+					player->displayClear();
+					break;
+
+				case -'D':
+					if (player->songNum() > 0)
+						player->setSongNum(player->songNum() - 1);
+					break;
+
+				case -'C':
+					if (player->songNum() < player->numSongs() - 1)
+						player->setSongNum(player->songNum() + 1);
+					break;
+				}
+			}
+			Sleep(10);
+		}
+	}
+
+	if (traymode) {
+		// トレイ削除
+		NOTIFYICONDATA nid{};
+		nid.cbSize = sizeof(nid);
+		nid.hWnd = hwnd;
+		nid.uID = 1;
+		Shell_NotifyIcon(NIM_DELETE, &nid);
+		if (g_hIcon) {
+			DestroyIcon(g_hIcon);
+			g_hIcon = nullptr;
+		}
 	}
 	g_running = false;
 	audio.join();
