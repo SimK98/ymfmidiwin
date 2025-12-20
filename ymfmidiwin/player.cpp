@@ -1168,7 +1168,6 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 		break;
 
 	case 120: // オール・サウンド・オフ
-	case 123: // オール・ノート・オフ
 	{
 		for (auto& voice : m_voices)
 		{
@@ -1178,10 +1177,24 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 			}
 		}
 		break;
+	}
+	case 123: // オール・ノート・オフ
+	{
+		for (auto& voice : m_voices)
+		{
+			if (voice.on && voice.channel == &m_channels[channel & 15])
+			{
+				silenceVoice(voice);
+				voice.justChanged = voice.on;
+				voice.on = false;
+				write(voice.chip, REG_VOICE_FREQH + voice.num, voice.freq >> 8);
+			}
+		}
+		break;
+	}
 	default:
 		TRACEOUT(("unknown control command!!! %d(%02x)", control, control));
 		break;
-	}
 	
 	}
 }
