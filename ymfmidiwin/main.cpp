@@ -32,6 +32,7 @@ extern "C" {
 #define ID_TRAY_EXIT		1001
 #define ID_TRAY_MIDIPANIC	1002
 #define ID_TRAY_ABOUT		1003
+#define ID_TRAY_RESTART		1004
 
 #define INTERNAL_SR 50000
 
@@ -246,6 +247,66 @@ void UpdateTrayIcon(HWND hwnd)
 	Shell_NotifyIcon(NIM_MODIFY, &nid);
 }
 
+int RestartApplication()
+{
+	// 実行ファイルパス取得
+	WCHAR szFilePath[MAX_PATH] = { 0 };
+	if (GetModuleFileNameW(NULL, szFilePath, MAX_PATH) == 0)
+		return -1;
+
+	// コマンドライン引数取得（exe名除く）
+	// GetCommandLine()はexe名込みなので解析が必要
+	LPWSTR cmdLine = GetCommandLineW();
+
+	// コマンドラインからexe名を除去（argv[0]相当）
+	int argc;
+	LPWSTR* argv = CommandLineToArgvW(cmdLine, &argc);
+	if (!argv)
+		return -1;
+
+	// argv[0]は実行ファイルパスなので、それを除いたコマンドラインを作成
+	// 例: argv[1] argv[2] ... を連結
+	WCHAR szArgs[1024] = { 0 };
+	for (int i = 1; i < argc; i++)
+	{
+		wcscat_s(szArgs, 1024, L"\"");
+		wcscat_s(szArgs, 1024, argv[i]);
+		wcscat_s(szArgs, 1024, L"\" ");
+	}
+	LocalFree(argv);
+
+	// CreateProcessの引数用にフルコマンドラインを作成（実行ファイルパス + 引数）
+	WCHAR szCmdLine[2048] = { 0 };
+	swprintf_s(szCmdLine, 2048, L"\"%s\" %s", szFilePath, szArgs);
+
+	STARTUPINFOW si = { sizeof(si) };
+	PROCESS_INFORMATION pi = {};
+
+	BOOL ret = CreateProcessW(
+		NULL,
+		szCmdLine,
+		NULL,
+		NULL,
+		FALSE,
+		0,
+		NULL,
+		NULL,
+		&si,
+		&pi);
+
+	if (!ret)
+	{
+		// エラー処理
+		return -1;
+	}
+
+	// 新プロセスのハンドルは不要なので閉じる
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+
+	return 0;
+}
+
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
@@ -262,6 +323,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_MIDIPANIC, TEXT("MIDI Panic"));
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_ABOUT, TEXT("About..."));
 			AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
+			AppendMenu(hMenu, MF_STRING, ID_TRAY_RESTART, TEXT("Restart"));
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT, TEXT("Exit"));
 
 			// これを呼ばないとメニューが即消える
@@ -303,6 +365,11 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case ID_TRAY_EXIT:
 			g_running = false;
 			PostQuitMessage(0);
+			return 0;
+		case ID_TRAY_RESTART:
+			g_running = false;
+			PostQuitMessage(0);
+			RestartApplication();
 			return 0;
 		}
 		break;

@@ -1,11 +1,11 @@
 ■■■ ymfmidi for Windows - FM MIDI synthesizer (ported by SimK) ■■■
 
 ヤマハのFM音源をエミュレーションするymfm（https://github.com/aaronsgiles/ymfm）
-をMIDIプレーヤーとして実装したymfmmidi（https://github.com/devinacker/ymfmidi）
+をMIDIプレーヤーとして実装したymfmidi（https://github.com/devinacker/ymfmidi）
 をさらにWindowsへ勝手に移植したものです。
 
 □特徴
-・ymfmmidiをWindows向けにほぼ完全移植
+・ymfmidiをWindows向けにほぼ完全移植
 ・FM音源風サウンドフォントではなく完全なFM音源エミュレーション
 ・定義ファイルで音色を変更可能
 ・常駐させてMIDI INデバイスとして使用可能
