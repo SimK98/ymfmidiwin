@@ -904,7 +904,7 @@ void AudioThread()
 					g_sleeping = true;
 					PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
 				}
-				Sleep(100);
+				Sleep(200);
 				continue;
 			}
 		}

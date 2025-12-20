@@ -265,7 +265,7 @@ void OPLPlayer::updateMIDI()
 		// time to update midi playback
 		m_samplesLeft = m_sequence->update(*this);
 		if (m_samplesLeft == UINT_MAX) {
-			m_samplesLeft = 200; // 適当 小さければ再開時のレスポンスはよくなるが待機負荷は増える
+			m_samplesLeft = 100; // 適当 小さければ再開時のレスポンスはよくなるが待機負荷は増える
 			m_output.data[0] = 0;
 			m_output.data[1] = 0;
 			m_sleepMode = true;
