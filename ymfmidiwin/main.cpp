@@ -27,7 +27,8 @@ extern "C" {
 
 #endif
 
-#define WM_TRAYICON   (WM_USER + 1)
+#define WM_USER_TRAYICON		(WM_USER + 1)
+#define WM_USER_UPDATETRAYICON	(WM_USER + 2)
 #define ID_TRAY_EXIT		1001
 #define ID_TRAY_MIDIPANIC	1002
 #define ID_TRAY_ABOUT		1003
@@ -42,10 +43,15 @@ extern "C" {
 
 static HINSTANCE g_hInst = nullptr;
 static HICON g_hIcon = nullptr;
+static HICON g_hIconSleep = nullptr;
+static HWND g_hWnd = nullptr;
+
+UINT g_WM_TASKBARCREATED = UINT_MAX;
 
 static bool g_running = true;
 static bool g_paused = false;
 static bool g_looping = true;
+static bool g_sleeping = false;
 
 static OPLPlayer *g_player = nullptr;
 
@@ -54,13 +60,13 @@ static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
 #else
 static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, bool traymode);
 #endif
-static void mainLoopWAV(OPLPlayer* player, const char* path);
+static void mainLoopWAV(OPLPlayer* player, const char* path, bool interactive);
 
 // ----------------------------------------------------------------------------
 void usage()
 {
 	fprintf(stderr, 
-	"usage: ymfmidi [options] song_path [patch_path]\n"
+	"usage: ymfmidiwin [options] song_path [patch_path]\n"
 	"\n"
 	"supported song formats:  HMI, HMP, MID, MUS, RMI, XMI\n"
 	"supported patch formats: AD, OPL, OP2, TMB, WOPL\n"
@@ -84,7 +90,7 @@ void usage()
 	"  -t / --tray             resides in the task tray\n"
 	"\n"
 	);
-	
+
 	exit(1);
 }
 
@@ -152,11 +158,61 @@ BOOL WINAPI ConsoleHandler(DWORD ctrlType)
 	}
 }
 
+bool RegisterTrayIcon(HWND hwnd)
+{
+	if (!g_hIcon) {
+		g_hIcon = (HICON)LoadImage(
+			g_hInst,
+			MAKEINTRESOURCE(IDI_APPICON),
+			IMAGE_ICON,
+			GetSystemMetrics(SM_CXSMICON),
+			GetSystemMetrics(SM_CYSMICON),
+			LR_DEFAULTCOLOR);
+	}
+	if (!g_hIconSleep) {
+		g_hIconSleep = (HICON)LoadImage(
+			g_hInst,
+			MAKEINTRESOURCE(IDI_SLEEPICON),
+			IMAGE_ICON,
+			GetSystemMetrics(SM_CXSMICON),
+			GetSystemMetrics(SM_CYSMICON),
+			LR_DEFAULTCOLOR);
+	}
+
+	NOTIFYICONDATA nid{};
+	nid.cbSize = sizeof(nid);
+	nid.hWnd = hwnd;
+	nid.uID = 1;
+	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+	nid.uCallbackMessage = WM_USER_TRAYICON;
+	nid.hIcon = g_hIcon;
+
+	lstrcpy(nid.szTip, TEXT("ymfmidi for Windows"));
+
+	return Shell_NotifyIcon(NIM_ADD, &nid) != FALSE;
+}
+
+void UpdateTrayIcon(HWND hwnd)
+{
+	NOTIFYICONDATA nid{};
+	nid.cbSize = sizeof(nid);
+	nid.hWnd = hwnd;
+	nid.uID = 1;
+	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+	nid.uCallbackMessage = WM_USER_TRAYICON;
+
+	nid.hIcon = g_sleeping ? g_hIconSleep : g_hIcon;
+
+	wcscpy_s(nid.szTip, g_sleeping ? TEXT("ymfmidi for Windows (sleep)") : TEXT("ymfmidi for Windows"));
+
+	Shell_NotifyIcon(NIM_MODIFY, &nid);
+}
+
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
 	{
-	case WM_TRAYICON:
+	case WM_USER_TRAYICON:
 		switch (lParam)
 		{
 		case WM_RBUTTONUP:
@@ -187,6 +243,10 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 		return 0;
 
+	case WM_USER_UPDATETRAYICON:
+		UpdateTrayIcon(g_hWnd);
+		break;
+
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
@@ -196,7 +256,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 			return 0;
 		case ID_TRAY_ABOUT:
-			MessageBox(hwnd, TEXT("ymfmidi for Windows v" VERSION " - " __DATE__ "\nThis software includes components licensed under the BSD License. See LICENSE.txt for details."), TEXT("About"), MB_OK | MB_ICONINFORMATION);
+			MessageBox(hwnd, TEXT("ymfmidi for Windows v" VERSION " - " __DATE__ "\nThis softwerare includes components licensed under the BSD License. See LICENSE.txt for details."), TEXT("About"), MB_OK | MB_ICONINFORMATION);
 			return 0;
 		case ID_TRAY_EXIT:
 			g_running = false;
@@ -208,6 +268,12 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
+
+	default:
+		if (msg == g_WM_TASKBARCREATED) {
+			RegisterTrayIcon(g_hWnd);
+			UpdateTrayIcon(g_hWnd);
+		}
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -220,38 +286,33 @@ HWND CreateHiddenWindow(HINSTANCE hInst)
 	wc.hInstance = hInst;
 	wc.lpszClassName = TEXT("ymfmidiwin_tray");
 
+	g_WM_TASKBARCREATED = RegisterWindowMessage(L"TaskbarCreated");
+
 	RegisterClass(&wc);
 
 	return CreateWindow(
 		wc.lpszClassName,
 		TEXT(""),
-		0,
+		WS_OVERLAPPEDWINDOW,
 		0, 0, 0, 0,
-		HWND_MESSAGE,
+		nullptr,
 		nullptr,
 		hInst,
 		nullptr);
 }
 
-bool RegisterTrayIcon(HWND hwnd)
+bool RunExe(const wchar_t* exePath, const wchar_t* params = nullptr)
 {
-	NOTIFYICONDATA nid{};
-	nid.cbSize = sizeof(nid);
-	nid.hWnd = hwnd;
-	nid.uID = 1;
-	nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-	nid.uCallbackMessage = WM_TRAYICON;
+	HINSTANCE res = ShellExecuteW(
+		nullptr,
+		L"open",
+		exePath,
+		params,
+		nullptr,
+		SW_SHOWNORMAL
+	);
 
-	g_hIcon = nid.hIcon = (HICON)LoadImage(
-		g_hInst,
-		MAKEINTRESOURCE(IDI_APPICON),
-		IMAGE_ICON,
-		GetSystemMetrics(SM_CXSMICON),
-		GetSystemMetrics(SM_CYSMICON),
-		LR_DEFAULTCOLOR);
-	lstrcpy(nid.szTip, TEXT("ymfmidi for Windows"));
-
-	return Shell_NotifyIcon(NIM_ADD, &nid) != FALSE;
+	return ((INT_PTR)res > 32);
 }
 
 // ----------------------------------------------------------------------------
@@ -273,11 +334,12 @@ int main(int argc, char **argv)
 	int numChips = 1;
 	unsigned songNum = 0;
 	bool stereo = true;
+	int suspendTimeMilliseconds = 30000; // 30秒でサスペンド
 
 	printf("ymfmidi for Windows v" VERSION " - " __DATE__ "\n");
 
 	char opt;
-	while ((opt = getopt_long(argc, argv, ":hq1s:o:c:n:mb:g:r:f:t", options, nullptr)) != -1)
+	while ((opt = getopt_long(argc, argv, ":hq1s:o:c:n:mb:g:r:f:tp:", options, nullptr)) != -1)
 	{
 		switch (opt)
 		{
@@ -300,7 +362,7 @@ int main(int argc, char **argv)
 		
 		case 'o':
 			wavPath = optarg;
-			interactive = g_looping = false;
+			g_looping = false;
 			break;
 		
 		case 'c':
@@ -368,6 +430,11 @@ int main(int argc, char **argv)
 			// タスクトレイ常駐モード
 			traymode = true;
 			break;
+
+		case 'p':
+			// サスペンド時間
+			suspendTimeMilliseconds = atoi(optarg);
+			break;
 		}
 	}
 	
@@ -379,7 +446,7 @@ int main(int argc, char **argv)
 		patchPath = argv[optind + 1];
 	{
 		const char* fileext = strrchr(songPath, '.');
-		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0 || _stricmp(fileext, ".op2") == 0)) {
+		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0 || _stricmp(fileext, ".op2") == 0 || _stricmp(fileext, ".tmb") == 0 || _stricmp(fileext, ".ad") == 0)) {
 			const char* tmp = patchPath;
 			patchPath = songPath;
 			songPath = tmp;
@@ -413,6 +480,7 @@ int main(int argc, char **argv)
 	player->setStereo(stereo);
 	if (songNum > 0)
 		player->setSongNum(songNum - 1);
+	player->setAutoSuspend(suspendTimeMilliseconds);
 	
 	if (interactive)
 	{
@@ -431,7 +499,24 @@ int main(int argc, char **argv)
 
 	if (wavPath) 
 	{
-		mainLoopWAV(player, wavPath);
+		if (memcmp(songPath, "//", 2) != 0) {
+			char wavPathTmp[MAX_PATH] = { 0 };
+			if (strcmp(wavPath, ".") == 0) {
+				// 自動で名前を付ける
+				strcpy_s(wavPathTmp, songPath);
+				char* sepa = strrchr(wavPathTmp, '\\');
+				char* ext = strrchr(wavPathTmp, '.');
+				if (ext && ext > sepa) {
+					*ext = '\0';
+				}
+				strcat_s(wavPathTmp, "_ymfm.wav");
+				wavPath = wavPathTmp;
+			}
+			mainLoopWAV(player, wavPath, interactive);
+		}
+		else {
+			fprintf(stderr, "WAV output is not possible when using MIDI IN\n");
+		}
 	}
 	else
 	{
@@ -563,7 +648,7 @@ static void mainLoopSDL(OPLPlayer *player, int bufferSize, bool interactive)
 #endif
 
 // ----------------------------------------------------------------------------
-static void mainLoopWAV(OPLPlayer *player, const char *path)
+static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 {
 	FILE* wav;
 	if (fopen_s(&wav, path, "wb"))
@@ -580,25 +665,56 @@ static void mainLoopWAV(OPLPlayer *player, const char *path)
 	uint16_t samples[2];
 	char outSamples[4];
 	const unsigned bytesPerSample = player->stereo() ? 4 : 2;
-	
-	while (!player->atEnd())
+	const uint32_t sampleRate = player->sampleRate();
+	const int displayStep = sampleRate / 10;
+	const int writeBufferSize = 4096;
+	uint32_t writeBufferPos = 0;
+	uint32_t writeBuffer[writeBufferSize] = { 0 };
+
+	while (!player->atEnd() && g_running)
 	{
 		player->generate(reinterpret_cast<int16_t*>(samples), 1);
 		outSamples[0] = samples[0];
 		outSamples[1] = samples[0] >> 8;
 		outSamples[2] = samples[1];
 		outSamples[3] = samples[1] >> 8;
-		
-		if (fwrite(outSamples, 1, bytesPerSample, wav) != bytesPerSample)
+
+		writeBuffer[writeBufferPos] = *((uint32_t*)outSamples);
+		writeBufferPos++;
+		if (writeBufferPos >= writeBufferSize) {
+			if (fwrite(writeBuffer, bytesPerSample, writeBufferPos, wav) != writeBufferPos)
+			{
+				fprintf(stderr, "writing WAV data failed\n");
+				exit(1);
+			}
+			writeBufferPos = 0;
+		}
+		numSamples++;
+
+		if (interactive && numSamples % displayStep == 0) {
+			consolePos(4);
+			printf("Time: %d sec\n", numSamples / sampleRate);
+
+			printf("\ncontrols: [esc/q] quit\n");
+
+			switch (consoleGetKey())
+			{
+			case 0x1b:
+			case 'q':
+				g_running = false;
+				continue;
+			}
+		}
+	}
+	if (writeBufferPos > 0) {
+		if (fwrite(writeBuffer, bytesPerSample, writeBufferPos, wav) != writeBufferPos)
 		{
 			fprintf(stderr, "writing WAV data failed\n");
 			exit(1);
 		}
-		numSamples++;
 	}
 	
 	// fill in the rendered sample size and write the header
-	const uint32_t sampleRate = player->sampleRate();
 	const uint32_t byteRate = sampleRate * bytesPerSample;
 	const uint32_t dataSize = numSamples * bytesPerSample;
 	const uint32_t wavSize = dataSize + 36;
@@ -739,7 +855,6 @@ void AudioThread()
 
 	audioClient->Start();
 
-	bool lastSleepMode = false;
 	while (g_running)
 	{
 		if (g_paused)
@@ -764,8 +879,9 @@ void AudioThread()
 				g_running &= !player->atEnd();
 
 			if (!player->isSleepMode()) {
-				if (lastSleepMode) {
-					lastSleepMode = false;
+				if (g_sleeping) {
+					g_sleeping = false;
+					PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
 				}
 
 				// --- SR 変換 ---
@@ -784,8 +900,9 @@ void AudioThread()
 					out.data() + d.output_frames_gen * mixFmt->nChannels);
 			}
 			else {
-				if (!lastSleepMode) {
-					lastSleepMode = true;
+				if (!g_sleeping) {
+					g_sleeping = true;
+					PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
 				}
 				Sleep(100);
 				continue;
@@ -841,7 +958,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 	if (traymode) {
 		g_hInst = GetModuleHandle(nullptr);
 
-		hwnd = CreateHiddenWindow(g_hInst);
+		g_hWnd = hwnd = CreateHiddenWindow(g_hInst);
 		if (!hwnd)
 			return;
 
@@ -924,6 +1041,8 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 	}
 
 	if (traymode) {
+		g_hWnd = nullptr;
+
 		// トレイ削除
 		NOTIFYICONDATA nid{};
 		nid.cbSize = sizeof(nid);
@@ -933,6 +1052,10 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 		if (g_hIcon) {
 			DestroyIcon(g_hIcon);
 			g_hIcon = nullptr;
+		}
+		if (g_hIconSleep) {
+			DestroyIcon(g_hIconSleep);
+			g_hIconSleep = nullptr;
 		}
 	}
 	g_running = false;

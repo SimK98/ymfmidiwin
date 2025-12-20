@@ -76,6 +76,7 @@ public:
 	void setSampleRate(uint32_t rate);
 	void setGain(double gain);
 	void setFilter(double cutoff);
+	void setAutoSuspend(int suspendTimeMilliseconds);
 	
 	// enable/disable OPL3 stereo support. can be called during active playback
 	// (note: the output of OPLPlayer::generate is a stereo stream regardless of this setting)

@@ -125,6 +125,11 @@ void OPLPlayer::setFilter(double cutoff)
 //	printf("sample rate = %u / cutoff %f Hz / filter coef %f\n", m_sampleRate, cutoff, m_hpFilterCoef);
 }
 
+void OPLPlayer::setAutoSuspend(int suspendTimeMilliseconds) {
+	m_sequence->setAutoSuspend(suspendTimeMilliseconds);
+}
+
+
 // ----------------------------------------------------------------------------
 void OPLPlayer::setStereo(bool on)
 {
@@ -260,7 +265,7 @@ void OPLPlayer::updateMIDI()
 		// time to update midi playback
 		m_samplesLeft = m_sequence->update(*this);
 		if (m_samplesLeft == UINT_MAX) {
-			m_samplesLeft = m_sampleRate / 5; // ’·‚¢‚±‚Æ—ˆ‚Ä‚¢‚È‚¢‚Ì‚ÅÁ‰¹B200msec‚­‚ç‚¢‚¸‚ê‚Ä‚à‚¢‚¢‚Å‚µ‚å‚¤
+			m_samplesLeft = 100; // “K“–
 			m_output.data[0] = 0;
 			m_output.data[1] = 0;
 			m_sleepMode = true;

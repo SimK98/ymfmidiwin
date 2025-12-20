@@ -125,7 +125,7 @@ uint32_t SequenceMIDIIN::update(OPLPlayer& player)
 
 	if (count == 0) { // 空っぽなら待機モード 
 		ULONGLONG curTimeReal = GetTickCount64();
-		if (curTimeReal - m_currentTimeReal > 30000) {
+		if (m_suspendTimeMilliseconds > 0 && curTimeReal - m_currentTimeReal > m_suspendTimeMilliseconds) {
 			// スリープモード
 			return UINT_MAX;
 		}

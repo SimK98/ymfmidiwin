@@ -10,6 +10,7 @@ public:
 	{ 
 		m_atEnd = false;
 		m_songNum = 0;
+		m_suspendTimeMilliseconds = 0;
 	}
 	virtual ~Sequence();
 	
@@ -37,10 +38,14 @@ public:
 	// has this track reached the end?
 	// (this is true immediately after ending/looping, then becomes false after updating again)
 	bool atEnd() const { return m_atEnd; }
+
+	virtual void setAutoSuspend(int suspendTimeMilliseconds) { m_suspendTimeMilliseconds = suspendTimeMilliseconds; }
 	
 protected:
 	bool m_atEnd;
 	unsigned m_songNum;
+
+	int m_suspendTimeMilliseconds;
 	
 private:
 	virtual void read(const uint8_t *data, size_t size) = 0;

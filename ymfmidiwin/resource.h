@@ -14,3 +14,4 @@
 #endif
 
 #define IDI_APPICON 1
+#define IDI_SLEEPICON 2

@@ -213,5 +213,8 @@
     <Image Include="ymfmidi.ico">
       <Filter>リソース ファイル</Filter>
     </Image>
+    <Image Include="ymfmidi_sleep.ico">
+      <Filter>リソース ファイル</Filter>
+    </Image>
   </ItemGroup>
 </Project>
