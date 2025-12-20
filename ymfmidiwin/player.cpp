@@ -1167,12 +1167,12 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 		ch.bendRange = 2;
 		break;
 
-	case 120:
-	case 123:
+	case 120: // オール・サウンド・オフ
+	case 123: // オール・ノート・オフ
 	{
 		for (auto& voice : m_voices)
 		{
-			if (voice.on)
+			if (voice.on && voice.channel == &m_channels[channel & 15])
 			{
 				silenceVoice(voice);
 			}
