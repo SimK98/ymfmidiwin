@@ -1,120 +1,128 @@
-������ ymfmidi for Windows - FM MIDI synthesizer (ported by SimK) ������
+﻿■■■ ymfmidi for Windows - FM MIDI synthesizer (ported by SimK) ■■■
 
-���}�n��FM�������G�~�����[�V��������ymfm�ihttps://github.com/aaronsgiles/ymfm�j
-��MIDI�v���[���[�Ƃ��Ď�������ymfmidi�ihttps://github.com/devinacker/ymfmidi�j
-�������Windows�֏���ɈڐA�������̂ł��B
+ヤマハのFM音源をエミュレーションするymfm（https://github.com/aaronsgiles/ymfm）
+をMIDIプレーヤーとして実装したymfmidi（https://github.com/devinacker/ymfmidi）
+をさらにWindowsへ勝手に移植したものです。
 
-������
-�Eymfmidi��Windows�����ɂقڊ��S�ڐA
-�EFM�������T�E���h�t�H���g�ł͂Ȃ����S��FM�����G�~�����[�V����
-�E��`�t�@�C���ŉ��F��ύX�\
-�E�풓������MIDI IN�f�o�C�X�Ƃ��Ďg�p�\
-
-
-�������
-���Ȃ��Ƃ�Windows 10�ȍ~�ł͓����Ǝv���Ă��܂�
+□特徴
+・ymfmidiをWindows向けにほぼ完全移植
+・FM音源風サウンドフォントではなく完全なFM音源エミュレーション
+・定義ファイルで音色を変更可能
+・常駐させてMIDI INデバイスとして使用可能
 
 
-���C���X�g�[��
-�P��MIDI�t�@�C���v���[���[�Ƃ��Ďg�p����ꍇ�͓��ʂȍ�Ƃ͗v��܂���B
-�A�[�J�C�u��W�J���čD���ȏꏊ�֒u��������OK�ł��B
-
-�풓������MIDI IN�f�o�C�X�Ƃ��Ďg�p����ꍇ�́AMIDI IN�ɃP�[�u�����q�����A
-���zMIDI IN��p�ӂ��Ă��������B
-���ۂɂ͂���\�t�g��MIDI OUT�����̂܂܎󂯎�肽���ꍇ�������Ǝv���܂��̂ŁA
-����������ł���loopMIDI�Ƃ����\�t�g�E�F�A���������߂ł��B
-loopMIDI���g�p����ƁA�������O��MIDI IN��MIDI OUT���o�����܂��B
-�����͕����I�ɃP�[�u���Ōq����Ă���̂Ɠ����U�镑�������܂��̂ŁA
-����\�t�g��MIDI OUT�Ƃ��̃v���O������MIDI IN�𓯂�loopMIDI�f�o�C�X�ɂ����
-����\�t�g�ōĐ����ꂽMIDI�����̂܂܂��̃v���O�����֑��荞��ōĐ��o���܂��B
+●動作環境
+少なくともWindows 10以降では動くと思っています
 
 
-���A���C���X�g�[��
-���W�X�g���͎g�p���Ă��܂���̂ł��̂܂܍폜���Ă��������B
+●インストール
+単にMIDIファイルプレーヤーとして使用する場合は特別な作業は要りません。
+アーカイブを展開して好きな場所へ置くだけでOKです。
+
+常駐させてMIDI INデバイスとして使用する場合は、MIDI INにケーブルを繋ぐか、
+仮想MIDI INを用意してください。
+実際にはあるソフトのMIDI OUTをそのまま受け取りたい場合が多いと思いますので、
+これを実現できるloopMIDIというソフトウェアがおすすめです。
+loopMIDIを使用すると、同じ名前のMIDI INとMIDI OUTが出現します。
+これらは物理的にケーブルで繋がれているのと同じ振る舞いをしますので、
+あるソフトのMIDI OUTとこのプログラムのMIDI INを同じloopMIDIデバイスにすれば
+あるソフトで再生されたMIDIをそのままこのプログラムへ送り込んで再生出来ます。
 
 
-���g����
-�@������MIDI�v���[���[�Ƃ��Ďg���ꍇ
-ymfmidiwin.exe�iOS��32bit�̏ꍇymfmidiwin32.exe�j��MIDI�t�@�C��������ƍĐ�����܂��B���F��OPL�̎�ށE���Ȃǂ̓R�}���h���C�������Ŏw���ł��܂��B
+●アンインストール
+レジストリは使用していませんのでそのまま削除してください。
 
-�AMIDI�Đ��f�o�C�X�Ƃ��Ďg���ꍇ
-���炩����loopMIDI�������Ă����܂��B���̂��Ƃ�
+
+●使い方
+①ただのMIDIプレーヤーとして使う場合
+ymfmidiwin.exe（OSが32bitの場合ymfmidiwin32.exe）にMIDIファイルを入れると再生されます。音色やOPLの種類・数などはコマンドライン引数で指示できます。
+
+②MIDI再生デバイスとして使う場合
+あらかじめloopMIDI等を入れておきます。そのあとで
 ymfmidiwin.exe -t //MIDIIN0
-�iOS��32bit�̏ꍇymfmidiwin32.exe�j
-�Ǝ��s����ƃ^�X�N�g���C�ɏ풓���܂��B�E�N���b�N���j���[�ŏI���ł��܂��B
-//MIDIIN1���Ə����ƕʂ�MIDI IN�f�o�C�X���w��ł��܂��B
+（OSが32bitの場合ymfmidiwin32.exe）
+と実行するとタスクトレイに常駐します。右クリックメニューで終了できます。
+//MIDIIN1等と書くと別のMIDI INデバイスを指定できます。
+
+-tの常駐状態ではタスクトレイアイコンの右クリックメニューで操作できます。
+・MIDI Panic - 音が鳴りっぱなしになって止まらないときにリセットできます
+・About - バージョン情報等を表示
+・Restart - アプリケーションを再起動する（音が鳴らなくなったとき等に使用）
+・Exit - 終了する
 
 
-���R�}���h���C�������̐���
-ymfmidiwin [�I�v�V����] MIDI�t�@�C���� [���F�f�[�^�t�@�C����]
+●コマンドライン引数の説明
+ymfmidiwin [オプション] MIDIファイル名 [音色データファイル名]
 
-�Ή�MIDI�t�@�C���t�H�[�}�b�g:  HMI, HMP, MID, MUS, RMI, XMI
-�Ή����F�f�[�^�t�H�[�}�b�g: AD, OPL, OP2, TMB, WOPL
+対応MIDIファイルフォーマット:  HMI, HMP, MID, MUS, RMI, XMI
+対応音色データフォーマット: AD, OPL, OP2, TMB, WOPL
 
-MIDI�t�@�C�����Ƃ���//MIDIIN�Ə�����MIDI IN�f�o�C�X�Ƃ��ď풓���܂��B
+MIDIファイル名として//MIDIINと書くとMIDI INデバイスとして常駐します。
 
-�I�v�V����:
-  -h / --help             �R�}���h���C�������Ȃǂ̐�����\��
-  -q / --quiet            �`�b�v��Ԃ̕\����L�[����𖳌��ɂ���
-  -1 / --play-once        1�񂾂��Đ����ďI������i�f�t�H���g�̓��[�v�Đ��j
-  -s / --song <num>       �����Ȃ�����ꍇ�ɂǂ���Đ����邩�w��(�f�t�H���g1)
-  -o / --out <path>       �w�肵�����O��WAV�t�@�C���ɕϊ����ďo�͂���
-                          <path>��"."�̏ꍇ�̓t�@�C������_ymfm.wav��t���ďo��
+オプション:
+  -h / --help             コマンドライン引数などの説明を表示
+  -q / --quiet            チップ状態の表示やキー動作を無効にする
+  -1 / --play-once        1回だけ再生して終了する（デフォルトはループ再生）
+  -s / --song <num>       複数曲がある場合にどれを再生するか指示(デフォルト1)
+  -o / --out <path>       指定した名前のWAVファイルに変換して出力する
+                          <path>が"."の場合はファイル名に_ymfm.wavを付けて出力
 
-  -c / --chip <num>       �`�b�v���(1=OPL, 2=OPL2, 3=OPL3; �f�t�H���g3)
-  -n / --num <num>        �`�b�v��(�f�t�H���g1)
-  -m / --mono             �������m������ (OPL3�̏ꍇ�̂�)
-  -b / --buf <num>        �o�b�t�@�T�C�Y�w��(�f�t�H���g4096)
-  -g / --gain <num>       ���ʃQ�C��(�f�t�H���g1.0)
-  -r / --rate <num>       WAV�o�̓T���v�����O���[�g(�f�t�H���g44100)
-  -f / --filter <num>     Hz�P�ʂ̃n�C�p�X�t�B���^�J�b�g�I�t (default 5.0)
+  -c / --chip <num>       チップ種別(1=OPL, 2=OPL2, 3=OPL3; デフォルト3)
+  -n / --num <num>        チップ数(デフォルト1)
+  -m / --mono             強制モノラル化 (OPL3の場合のみ)
+  -b / --buf <num>        バッファサイズ指示(デフォルト4096)
+  -g / --gain <num>       音量ゲイン(デフォルト1.0)
+  -r / --rate <num>       WAV出力サンプリングレート(デフォルト44100)
+  -f / --filter <num>     Hz単位のハイパスフィルタカットオフ (default 5.0)
 
-  -t / --tray             �R���\�[���\�������Ƀ^�X�N�g���C�ɏ풓����
-  -p / --ptime            �X���[�v��Ԃֈڍs���鎞��(�~���b�P��; default 15000)
+  -t / --tray             コンソール表示せずにタスクトレイに常駐する
+  -p / --ptime            スリープ状態へ移行する時間(ミリ秒単位; default 15000)
 
-�Ȃ��AMIDI�t�@�C�����Ɖ��F�f�[�^���͕K���I�v�V�����̌�ɏ����K�v������܂��B
-�I�t�V�����̑O�Ƀt�@�C���w�肷��Ɠ����܂���B
+なお、MIDIファイル名と音色データ名は必ずオプションの後に書く必要があります。
+オフションの前にファイル指定すると動きません。
 
-���T�^�I�ȃI�v�V������
-OPL2������
+□典型的なオプション例
+OPL2化する
 ymfmidiwin -c 2
 
-������126���点��悤�ɂ���i��x���T�E���h�j
+同時に126音鳴らせるようにする（大富豪サウンド）
 ymfmidiwin -n 7
 
-�w�肵��MIDI�t�@�C����WAV�t�@�C���֏o�͂���
-ymfmidiwin -o WAV�t�@�C���� MIDI�t�@�C����
+指定したMIDIファイルをWAVファイルへ出力する
+ymfmidiwin -o WAVファイル名 MIDIファイル名
 
-���I���W�i����ymfmidi�ɂȂ��@�\
-MIDI IN�f�o�C�X���[�h�i�R���\�[���j
+□オリジナルのymfmidiにない機能
+MIDI INデバイスモード（コンソール）
 ymfmidiwin //MIDIIN
 
-MIDI IN�f�o�C�X���[�h�i�^�X�N�g���C�풓�j
+MIDI INデバイスモード（タスクトレイ常駐）
 ymfmidiwin -t //MIDIIN
 
-�w�肵��MIDI�t�@�C����_ymfm.wav��t���Ă֏o�͂���
-ymfmidiwin -o . MIDI�t�@�C����
-�� �Ⴆ�΁Atest.mid�Ȃ�test_ymfm.wav�֏o��
+指定したMIDIファイルを_ymfm.wavを付けてへ出力する
+ymfmidiwin -o . MIDIファイル名
+→ 例えば、test.midならtest_ymfm.wavへ出力
 
 
-�����̑����
-FM�����`�b�v���G�~�����[�V�������Ă���֌W��A�Đ����̕��ׂ͂܂��܂��傫���ł��B
-���삪�d�����ꍇ�A--quiet���[�h�ɂ���Ƒ����͕��ׂ�����܂��B
-�܂��A�풓��Ԃ̎��͂��ł�MIDI IN���󂯕t������悤�ɑҋ@��ԂɂȂ��Ă��܂��B
-���ꂾ��CPU�𖳑ʂɎg���܂��̂ŁA�f�t�H���g�ł�15�b�ԉ��������Ȃ������ꍇ��
-�X���[�v��ԂɂȂ�悤�ɂ��Ă��܂��B�܂�A15�b��MIDI���b�Z�[�W�𑗂�Ȃ��Ɖ���
-�~�܂�܂��B�X���[�v��ԂƂ���MIDI���b�Z�[�W�𑗂�ƍĂуA�N�e�B�u�ɂȂ�܂��B
-���̎��Ԃ�-p�I�v�V�����ŕύX�ł��܂��B0���w�肵���ꍇ�̓X���[�v���܂���B
+●その他情報
+FM音源チップをエミュレーションしている関係上、再生時の負荷はまあまあ大きいです。
+動作が重たい場合、--quietモードにすると多少は負荷が減ります。
+また、常駐状態の時はいつでもMIDI INを受け付けられるように待機状態になっています。
+これだとCPUを無駄に使いますので、デフォルトでは15秒間何も送られなかった場合に
+スリープ状態になるようにしています。つまり、15秒間MIDIメッセージを送らないと音が
+止まります。スリープ状態ときにMIDIメッセージを送ると再びアクティブになります。
+この時間は-pオプションで変更できます。0を指定した場合はスリープしません。
 
 
-���Ɛӎ���
-�{�v���O�����̓t���[�\�t�g�����ۏ؂ł��B�{�v���O�������g�p�������Ƃŉ��炩��
-���Q�����������Ƃ��Ă��A��҂͈�؂̐ӔC�𕉂�Ȃ����̂Ƃ��܂��B
+●免責事項
+本プログラムはフリーソフト＆無保証です。本プログラムを使用したことで何らかの
+損害が発生したとしても、作者は一切の責任を負わないものとします。
 
 
-���o�[�W��������
-2025/12/20 ver.0.6 ���Łiymfmidi ver.0.6���ڐA�j
+●バージョン履歴
+2025/12/20 ver.0.6.0.0 初版（ymfmidi ver.0.6より移植）
+2025/12/21 ver.0.6.0.1 オールxx系コマンドの扱いを間違えていたのを修正
+                       右クリックメニューでリスタートできるようにした
 
 ------------------------
-Neko Project 21/W �J����
+Neko Project 21/W 開発者
 SimK
