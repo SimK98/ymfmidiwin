@@ -193,6 +193,11 @@ void OPLPlayer::generate(float *data, unsigned numSamples)
 	while (samp < numSamples * 2)
 	{
 		updateMIDI();
+
+		if (m_sleepMode) {
+			m_samplesLeft = 0;
+			break; // スリープ中
+		}
 		
 		float samples[2];
 		samples[0] = m_output.data[0] / 32767.0;
@@ -265,7 +270,7 @@ void OPLPlayer::updateMIDI()
 		// time to update midi playback
 		m_samplesLeft = m_sequence->update(*this);
 		if (m_samplesLeft == UINT_MAX) {
-			m_samplesLeft = 100; // 適当 小さければ再開時のレスポンスはよくなるが待機負荷は増える
+			m_samplesLeft = 1; // だみー
 			m_output.data[0] = 0;
 			m_output.data[1] = 0;
 			m_sleepMode = true;
@@ -560,13 +565,10 @@ void OPLPlayer::resetOPL()
 	for (int i = 0; i < 16; i++)
 	{
 		m_channels[i].percussion = false;
-		m_channels[i].bank = 0;
-		m_channels[i].patchNum = 0;
 		m_channels[i].volume = 127;
 		m_channels[i].pan = 64;
 		m_channels[i].basePitch = 0.0; // pitch wheel position
 		m_channels[i].pitch = 1.0; // frequency multiplier
-		m_channels[i].rpn = 0x3fff;
 		m_channels[i].bendRange = 2;
 	}
 	m_channels[9].percussion = true;
@@ -1157,9 +1159,6 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 		break;
 
 	case 121: // リセットオールコントローラー
-		ch.percussion = false;
-		ch.bank = 0;
-		ch.patchNum = 0;
 		ch.volume = 127;
 		ch.pan = 64;
 		ch.basePitch = 0.0; // pitch wheel position

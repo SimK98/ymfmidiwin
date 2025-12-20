@@ -88,6 +88,7 @@ void usage()
 	"  -f / --filter <num>     set highpass cutoff in Hz (default 5.0)\n"
 	"\n"
 	"  -t / --tray             resides in the task tray\n"
+	"  -p / --ptime            Time to enter sleep mode (msec; default 15000)\n"
 	"\n"
 	);
 
@@ -108,6 +109,7 @@ static const option options[] =
 	{"rate",      1, nullptr, 'r'},
 	{"filter",    1, nullptr, 'f'},
 	{"tray",      0, nullptr, 't'},
+	{"ptime",     0, nullptr, 'p'},
 	{0}
 };
 
@@ -334,7 +336,7 @@ int main(int argc, char **argv)
 	int numChips = 1;
 	unsigned songNum = 0;
 	bool stereo = true;
-	int suspendTimeMilliseconds = 30000; // 30秒でサスペンド
+	int suspendTimeMilliseconds = 15000; // 15秒でサスペンド
 
 	printf("ymfmidi for Windows v" VERSION " - " __DATE__ "\n");
 
@@ -904,7 +906,7 @@ void AudioThread()
 					g_sleeping = true;
 					PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
 				}
-				Sleep(200);
+				Sleep(100);
 				continue;
 			}
 		}
@@ -962,9 +964,10 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 		if (!hwnd)
 			return;
 
+		ShowWindow(hwnd, SW_HIDE);
 		if (RegisterTrayIcon(hwnd)) {
-			// コンソールを隠す
-			ShowWindow(GetConsoleWindow(), SW_HIDE);
+			// コンソールを消す
+			FreeConsole();
 		}
 		else {
 			traymode = false;
