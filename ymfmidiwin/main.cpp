@@ -160,15 +160,42 @@ BOOL WINAPI ConsoleHandler(DWORD ctrlType)
 	}
 }
 
-bool RegisterTrayIcon(HWND hwnd)
+int g_lastIconDPI = 96;
+HICON g_oldhIcon = nullptr;
+HICON g_oldhIconSleep = nullptr;
+void ReleaseOldTrayIcon(void)
 {
+	// 古いアイコン削除　トレイアイコン差し替え前に削除してはいけない
+	if (g_oldhIcon) {
+		DestroyIcon(g_oldhIcon);
+		g_oldhIcon = nullptr;
+	}
+	if (g_hIconSleep) {
+		DestroyIcon(g_hIconSleep);
+		g_hIconSleep = nullptr;
+	}
+}
+void CreateTrayIcon(HWND hwnd)
+{
+	ReleaseOldTrayIcon();
+
+	UINT dpi = GetDpiForWindow(hwnd);
+	int iconSizeX = GetSystemMetrics(SM_CXSMICON) * dpi / 96;
+	int iconSizeY = GetSystemMetrics(SM_CYSMICON) * dpi / 96;
+	if (g_lastIconDPI != dpi) {
+		// 再作成
+		g_oldhIcon = g_hIcon;
+		g_oldhIconSleep = g_hIconSleep;
+		g_hIcon = nullptr;
+		g_hIconSleep = nullptr;
+	}
 	if (!g_hIcon) {
 		g_hIcon = (HICON)LoadImage(
 			g_hInst,
 			MAKEINTRESOURCE(IDI_APPICON),
 			IMAGE_ICON,
-			GetSystemMetrics(SM_CXSMICON),
-			GetSystemMetrics(SM_CYSMICON),
+			iconSizeX,
+			iconSizeY,
 			LR_DEFAULTCOLOR);
 	}
 	if (!g_hIconSleep) {
@@ -176,10 +203,16 @@ bool RegisterTrayIcon(HWND hwnd)
 			g_hInst,
 			MAKEINTRESOURCE(IDI_SLEEPICON),
 			IMAGE_ICON,
-			GetSystemMetrics(SM_CXSMICON),
-			GetSystemMetrics(SM_CYSMICON),
+			iconSizeX,
+			iconSizeY,
 			LR_DEFAULTCOLOR);
 	}
+	g_lastIconDPI = dpi;
+}
+
+bool RegisterTrayIcon(HWND hwnd)
+{
+	CreateTrayIcon(hwnd);
 
 	NOTIFYICONDATA nid{};
 	nid.cbSize = sizeof(nid);
@@ -191,11 +224,14 @@ bool RegisterTrayIcon(HWND hwnd)
 
 	lstrcpy(nid.szTip, TEXT("ymfmidi for Windows"));
 
-	return Shell_NotifyIcon(NIM_ADD, &nid) != FALSE;
+	BOOL r = Shell_NotifyIcon(NIM_ADD, &nid);
+	return !!r;
 }
 
 void UpdateTrayIcon(HWND hwnd)
 {
+	CreateTrayIcon(hwnd);
+
 	NOTIFYICONDATA nid{};
 	nid.cbSize = sizeof(nid);
 	nid.hWnd = hwnd;
@@ -246,6 +282,10 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		return 0;
 
 	case WM_USER_UPDATETRAYICON:
+		UpdateTrayIcon(g_hWnd);
+		break;
+
+	case WM_DPICHANGED:
 		UpdateTrayIcon(g_hWnd);
 		break;
 
@@ -303,18 +343,20 @@ HWND CreateHiddenWindow(HINSTANCE hInst)
 		nullptr);
 }
 
-bool RunExe(const wchar_t* exePath, const wchar_t* params = nullptr)
+typedef BOOL(WINAPI* PFN_SetThreadDpiAwarenessContext)(DPI_AWARENESS_CONTEXT);
+void EnableHighDpiScaling()
 {
-	HINSTANCE res = ShellExecuteW(
-		nullptr,
-		L"open",
-		exePath,
-		params,
-		nullptr,
-		SW_SHOWNORMAL
-	);
-
-	return ((INT_PTR)res > 32);
+	HMODULE hUser32 = LoadLibraryW(L"user32.dll");
+	if (hUser32)
+	{
+		auto p = (PFN_SetThreadDpiAwarenessContext)
+			GetProcAddress(hUser32, "SetThreadDpiAwarenessContext");
+		if (p)
+		{
+			p((DPI_AWARENESS_CONTEXT)-4);
+		}
+		FreeLibrary(hUser32);
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -337,6 +379,8 @@ int main(int argc, char **argv)
 	unsigned songNum = 0;
 	bool stereo = true;
 	int suspendTimeMilliseconds = 15000; // 15秒でサスペンド
+
+	EnableHighDpiScaling();
 
 	printf("ymfmidi for Windows v" VERSION " - " __DATE__ "\n");
 
@@ -1060,6 +1104,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 			DestroyIcon(g_hIconSleep);
 			g_hIconSleep = nullptr;
 		}
+		ReleaseOldTrayIcon();
 	}
 	g_running = false;
 	audio.join();
