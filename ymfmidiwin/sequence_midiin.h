@@ -351,7 +351,7 @@ private:
 
     DWORD  m_currentTime;
     ULONGLONG  m_currentTimeReal;
-    bool  m_lastEmpty;
+    bool  m_lastSleepMode;
 };
 
 #endif // __SEQUENCE_MIDIIN_H

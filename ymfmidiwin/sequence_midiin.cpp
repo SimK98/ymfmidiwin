@@ -44,7 +44,7 @@ SequenceMIDIIN::SequenceMIDIIN() :
 	m_portnum(0),
 	m_currentTime(0),
 	m_currentTimeReal(0),
-	m_lastEmpty(false),
+	m_lastSleepMode(false),
 	Sequence()
 {
 }
@@ -52,7 +52,7 @@ SequenceMIDIIN::SequenceMIDIIN(int portnum) :
 	m_portnum(0),
 	m_currentTime(0),
 	m_currentTimeReal(0),
-	m_lastEmpty(false),
+	m_lastSleepMode(false),
 	Sequence()
 {
 	m_portnum = portnum;
@@ -127,11 +127,11 @@ uint32_t SequenceMIDIIN::update(OPLPlayer& player)
 		ULONGLONG curTimeReal = GetTickCount64();
 		if (m_suspendTimeMilliseconds > 0 && curTimeReal - m_currentTimeReal > m_suspendTimeMilliseconds) {
 			// スリープモード
+			m_lastSleepMode = true;
 			return UINT_MAX;
 		}
 		else if (curTimeReal - m_currentTimeReal > 10000) {
 			// 10秒来なければ100msecくらいずれてもいいでしょう
-			m_lastEmpty = true;
 			return player.sampleRate() / 10;
 		}
 		else if (curTimeReal - m_currentTimeReal > 1000) {
@@ -181,6 +181,8 @@ uint32_t SequenceMIDIIN::update(OPLPlayer& player)
 			break;
 		}
 		}
+
+		m_lastSleepMode = false;
 
 		m_currentTime = m.timestamp;
 		m_currentTimeReal = GetTickCount64();
