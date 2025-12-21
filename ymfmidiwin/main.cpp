@@ -842,7 +842,21 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 	std::vector<float> out(outBufferSamples * nChannels);
 	std::vector<uint16_t> out16(outBufferSamples * nChannels);
 
-	const float noSoundThreshold = 1.0f / 4096; // 無音と見做す音量
+	// サンプリング変換改善のために無音データを放り込んでおく
+	{
+		SRC_DATA d{};
+		for (int i = 0; i < inBufferSamples; i++) {
+			in[i] = 0;
+		}
+		d.data_in = in.data();
+		d.input_frames = inBufferSamples;
+		d.data_out = out.data();
+		d.output_frames = outBufferSamples;
+		d.src_ratio = ratio;
+	}
+
+	const int outwavMaxAmpitude = 32767;
+	const float noSoundThreshold = 1.0f / outwavMaxAmpitude; // 無音と見做す音量
 	int lastDispPos = 0;
 	int extendSamples = g_wavOutputMarginAuto ? (INTERNAL_SR * 5) : (int)((int64_t)g_wavOutputMarginMillisecond * INTERNAL_SR / 1000); // 指定した時間のばす。自動で末尾を探すのは5秒以内
 	int zeroCounter = 0;
@@ -863,15 +877,15 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 					endOutput = true;
 					break;
 				}
-				if (-noSoundThreshold < data[0] && data[0] < noSoundThreshold &&
-					-noSoundThreshold < data[1] && data[1] < noSoundThreshold) {
+				if (-noSoundThreshold <= data[0] && data[0] <= noSoundThreshold &&
+					-noSoundThreshold <= data[1] && data[1] <= noSoundThreshold) {
 					zeroCounter++;
 				}
 				else {
 					zeroCounter = 0;
 				}
-				if (g_wavOutputMarginAuto && zeroCounter >= 128) {
-					// 128サンプル無音なら終了と見做す
+				if (g_wavOutputMarginAuto && zeroCounter >= INTERNAL_SR / 10) {
+					// INTERNAL_SR / 10 サンプル = 0.1秒無音なら終了と見做す
 					endOutput = true;
 					break;
 				}
@@ -891,9 +905,9 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 		const int gensamples = d.output_frames_gen;
 		const int count = d.output_frames_gen * nChannels;
 		for (int i = 0; i < count; i++) {
-			float f1 = out[i] * 32767.0f;
-			if (f1 < -32767) f1 = -32767;
-			if (f1 > +32767) f1 = +32767;
+			float f1 = out[i] * outwavMaxAmpitude;
+			if (f1 < -outwavMaxAmpitude) f1 = -outwavMaxAmpitude;
+			if (f1 > +outwavMaxAmpitude) f1 = +outwavMaxAmpitude;
 			out16[i] = (uint16_t)round(f1);
 		}
 
