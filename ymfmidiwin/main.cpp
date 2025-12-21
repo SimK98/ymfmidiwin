@@ -57,6 +57,7 @@ static bool g_sleeping = false;
 static OPLPlayer *g_player = nullptr;
 
 static int g_srconvtype = SRC_SINC_FASTEST;
+static int g_wavOutputMarginMillisecond = 1000;
 
 #ifdef USE_SDL
 static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
@@ -93,8 +94,10 @@ void usage()
 	"  -t / --tray             resides in the task tray\n"
 	"  -p / --ptime            time to enter sleep mode (msec; default 15000)\n"
 	"\n"
-	"  --resampler<nearest|linear|sinc_fast|sinc_medium|sinc_best>\n"
-		"                      resampler type (default sinc_fast)\n"
+	"  --resampler <nearest|linear|sinc_fast|sinc_medium|sinc_best>\n"
+	"                          resampler type (default sinc_fast)\n"
+	"  --tail-time <num>       extra tail time to append to the WAV output\n"
+	"                          (msec; default 1000)\n"
 	"\n"
 	);
 
@@ -116,7 +119,8 @@ static const option options[] =
 	{"filter",    1, nullptr, 'f'},
 	{"tray",      0, nullptr, 't'},
 	{"ptime",     0, nullptr, 'p'},
-	{"resampler", 0, nullptr,  0 },
+	{"resampler", 1, nullptr,  0 },
+	{"tail-time", 1, nullptr,  0 },
 	{0}
 };
 
@@ -574,6 +578,10 @@ int main(int argc, char **argv)
 					g_srconvtype = SRC_SINC_BEST_QUALITY;
 				}
 			}
+			else if (strcmp(options[optionindex].name, "tail-time") == 0) {
+				g_wavOutputMarginMillisecond = atoi(optarg);
+				if (g_wavOutputMarginMillisecond < 0) g_wavOutputMarginMillisecond = 0;
+			}
 			break;
 		}
 	}
@@ -802,38 +810,78 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 	fseek(wav, 44, SEEK_SET);
 	
 	uint32_t numSamples = 0;
-	uint16_t samples[2];
-	char outSamples[4];
-	const unsigned bytesPerSample = player->stereo() ? 4 : 2;
+	const int nChannels = player->stereo() ? 2 : 1;
+	const unsigned bytesPerSample = nChannels * 2;
 	const uint32_t sampleRate = player->sampleRate();
 	const int displayStep = sampleRate / 10;
-	const int writeBufferSize = 4096;
-	uint32_t writeBufferPos = 0;
-	uint32_t writeBuffer[writeBufferSize] = { 0 };
 
-	while (!player->atEnd() && g_running)
+	// --- libsamplerate ---
+	int err = 0;
+	SRC_STATE* src = src_new(
+		g_srconvtype,
+		player->stereo() ? 2 : 1,
+		&err);
+
+	double ratio = (double)sampleRate / INTERNAL_SR;
+
+	player->setSampleRate(INTERNAL_SR); // OPL original rate
+
+	const int inBufferSamples = 4096;
+	const int outBufferSamples = inBufferSamples * ratio + 64; // マージン付けておく
+	std::vector<float> in(inBufferSamples * nChannels);
+	std::vector<float> out(outBufferSamples * nChannels);
+	std::vector<uint16_t> out16(outBufferSamples * nChannels);
+
+	int lastDispPos = 0;
+	int extendSamples = (int)((int64_t)g_wavOutputMarginMillisecond * INTERNAL_SR / 1000);
+	while ((!player->atEnd() || extendSamples > 0) && g_running)
 	{
-		player->generate(reinterpret_cast<int16_t*>(samples), 1);
-		outSamples[0] = samples[0];
-		outSamples[1] = samples[0] >> 8;
-		outSamples[2] = samples[1];
-		outSamples[3] = samples[1] >> 8;
-
-		writeBuffer[writeBufferPos] = *((uint32_t*)outSamples);
-		writeBufferPos++;
-		if (writeBufferPos >= writeBufferSize) {
-			if (fwrite(writeBuffer, bytesPerSample, writeBufferPos, wav) != writeBufferPos)
-			{
-				fprintf(stderr, "writing WAV data failed\n");
-				exit(1);
+		uint32_t inBufferCount = 0;
+		for (int i = 0; i < inBufferSamples; i++) {
+			in[i * 2] = in[i * 2 + 1] = 0;
+			player->generate(reinterpret_cast<float*>(in.data() + i * 2), 1);
+			inBufferCount++;
+			if (player->atEnd() || !g_running) {
+				if (extendSamples > 0) {
+					extendSamples--;
+				}
+				else {
+					break;
+				}
 			}
-			writeBufferPos = 0;
 		}
-		numSamples++;
 
-		if (interactive && numSamples % displayStep == 0) {
+		// --- SR 変換 ---
+		SRC_DATA d{};
+		d.data_in = in.data();
+		d.input_frames = min(inBufferSamples, inBufferCount);
+		d.data_out = out.data();
+		d.output_frames = outBufferSamples;
+		d.src_ratio = ratio;
+
+		src_process(src, &d);
+
+		const int gensamples = d.output_frames_gen;
+		const int count = d.output_frames_gen * nChannels;
+		for (int i = 0; i < count; i++) {
+			float f1 = out[i] * 32767.0f;
+			if (f1 < -32767) f1 = -32767;
+			if (f1 > +32767) f1 = +32767;
+			out16[i] = (uint16_t)round(f1);
+		}
+
+		if (fwrite(out16.data(), bytesPerSample, gensamples, wav) != gensamples)
+		{
+			fprintf(stderr, "writing WAV data failed\n");
+			exit(1);
+		}
+		numSamples += gensamples;
+
+		int curDispPos = numSamples / sampleRate;
+		if (interactive && curDispPos != lastDispPos) {
 			consolePos(4);
-			printf("Time: %d sec\n", numSamples / sampleRate);
+			printf("Time: %d sec\n", curDispPos);
+			lastDispPos = curDispPos;
 
 			printf("\ncontrols: [esc/q] quit\n");
 
@@ -844,13 +892,6 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 				g_running = false;
 				continue;
 			}
-		}
-	}
-	if (writeBufferPos > 0) {
-		if (fwrite(writeBuffer, bytesPerSample, writeBufferPos, wav) != writeBufferPos)
-		{
-			fprintf(stderr, "writing WAV data failed\n");
-			exit(1);
 		}
 	}
 	
@@ -969,8 +1010,7 @@ void AudioThread()
 		mixFmt->nChannels,
 		&err);
 
-	double ratio =
-		double(mixFmt->nSamplesPerSec) / 50000.0;
+	double ratio = (double)mixFmt->nSamplesPerSec / INTERNAL_SR;
 
 	// --- FIFO ---
 	std::vector<float> fifo;
@@ -1093,7 +1133,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 
 	std::thread audio(AudioThread);
 
-	player->setSampleRate(50000); // OPL original rate
+	player->setSampleRate(INTERNAL_SR); // OPL original rate
 
 	if (traymode) {
 		g_hInst = GetModuleHandle(nullptr);
