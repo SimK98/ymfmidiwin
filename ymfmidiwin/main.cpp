@@ -56,6 +56,8 @@ static bool g_sleeping = false;
 
 static OPLPlayer *g_player = nullptr;
 
+static int g_srconvtype = SRC_SINC_FASTEST;
+
 #ifdef USE_SDL
 static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
 #else
@@ -89,7 +91,10 @@ void usage()
 	"  -f / --filter <num>     set highpass cutoff in Hz (default 5.0)\n"
 	"\n"
 	"  -t / --tray             resides in the task tray\n"
-	"  -p / --ptime            Time to enter sleep mode (msec; default 15000)\n"
+	"  -p / --ptime            time to enter sleep mode (msec; default 15000)\n"
+	"\n"
+	"  --resampler<nearest|linear|sinc_fast|sinc_medium|sinc_best>\n"
+		"                      resampler type (default sinc_fast)\n"
 	"\n"
 	);
 
@@ -111,6 +116,7 @@ static const option options[] =
 	{"filter",    1, nullptr, 'f'},
 	{"tray",      0, nullptr, 't'},
 	{"ptime",     0, nullptr, 'p'},
+	{"resampler", 0, nullptr,  0 },
 	{0}
 };
 
@@ -452,7 +458,8 @@ int main(int argc, char **argv)
 	printf("ymfmidi for Windows v" VERSION " - " __DATE__ "\n");
 
 	char opt;
-	while ((opt = getopt_long(argc, argv, ":hq1s:o:c:n:mb:g:r:f:tp:", options, nullptr)) != -1)
+	int optionindex = 0;
+	while ((opt = getopt_long(argc, argv, ":hq1s:o:c:n:mb:g:r:f:tp:", options, &optionindex)) != -1)
 	{
 		switch (opt)
 		{
@@ -547,6 +554,26 @@ int main(int argc, char **argv)
 		case 'p':
 			// サスペンド時間
 			suspendTimeMilliseconds = atoi(optarg);
+			break;
+
+		case 0:
+			if (strcmp(options[optionindex].name, "resampler") == 0) {
+				if (strcmp(optarg, "linear") == 0) {
+					g_srconvtype = SRC_LINEAR;
+				}
+				else if (strcmp(optarg, "nearest") == 0) {
+					g_srconvtype = SRC_ZERO_ORDER_HOLD;
+				}
+				else if (strcmp(optarg, "sinc") == 0 || strcmp(optarg, "sinc_fast") == 0) {
+					g_srconvtype = SRC_SINC_FASTEST;
+				}
+				else if (strcmp(optarg, "sinc_medium") == 0) {
+					g_srconvtype = SRC_SINC_MEDIUM_QUALITY;
+				}
+				else if (strcmp(optarg, "sinc_best") == 0) {
+					g_srconvtype = SRC_SINC_BEST_QUALITY;
+				}
+			}
 			break;
 		}
 	}
@@ -938,7 +965,7 @@ void AudioThread()
 	// --- libsamplerate ---
 	int err = 0;
 	SRC_STATE* src = src_new(
-		SRC_SINC_FASTEST,
+		g_srconvtype,
 		mixFmt->nChannels,
 		&err);
 
