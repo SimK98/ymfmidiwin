@@ -58,6 +58,7 @@ static OPLPlayer *g_player = nullptr;
 
 static int g_srconvtype = SRC_SINC_FASTEST;
 static int g_wavOutputMarginMillisecond = 1000;
+static bool g_wavOutputMarginAuto = true;
 
 #ifdef USE_SDL
 static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
@@ -97,7 +98,7 @@ void usage()
 	"  --resampler <nearest|linear|sinc_fast|sinc_medium|sinc_best>\n"
 	"                          resampler type (default sinc_fast)\n"
 	"  --tail-time <num>       extra tail time to append to the WAV output\n"
-	"                          (msec; default 1000)\n"
+	"                          (msec; default auto)\n"
 	"\n"
 	);
 
@@ -562,6 +563,7 @@ int main(int argc, char **argv)
 
 		case 0:
 			if (strcmp(options[optionindex].name, "resampler") == 0) {
+				// サンプリング変換タイプ
 				if (strcmp(optarg, "linear") == 0) {
 					g_srconvtype = SRC_LINEAR;
 				}
@@ -579,8 +581,15 @@ int main(int argc, char **argv)
 				}
 			}
 			else if (strcmp(options[optionindex].name, "tail-time") == 0) {
-				g_wavOutputMarginMillisecond = atoi(optarg);
-				if (g_wavOutputMarginMillisecond < 0) g_wavOutputMarginMillisecond = 0;
+				// WAV出力時の末尾のマージン時間
+				if (strcmp(optarg, "auto") == 0) {
+					g_wavOutputMarginAuto = true;
+				}
+				else {
+					g_wavOutputMarginAuto = false;
+					g_wavOutputMarginMillisecond = atoi(optarg);
+					if (g_wavOutputMarginMillisecond < 0) g_wavOutputMarginMillisecond = 0;
+				}
 			}
 			break;
 		}
@@ -832,20 +841,37 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 	std::vector<float> out(outBufferSamples * nChannels);
 	std::vector<uint16_t> out16(outBufferSamples * nChannels);
 
+	const float noSoundThreshold = 1.0f / 4096; // 無音と見做す音量
 	int lastDispPos = 0;
-	int extendSamples = (int)((int64_t)g_wavOutputMarginMillisecond * INTERNAL_SR / 1000);
-	while ((!player->atEnd() || extendSamples > 0) && g_running)
+	int extendSamples = g_wavOutputMarginAuto ? (INTERNAL_SR * 5) : (int)((int64_t)g_wavOutputMarginMillisecond * INTERNAL_SR / 1000); // 指定した時間のばす。自動で末尾を探すのは5秒以内
+	int zeroCounter = 0;
+	bool endOutput = false;
+	while ((!player->atEnd() || extendSamples > 0) && g_running && !endOutput)
 	{
 		uint32_t inBufferCount = 0;
 		for (int i = 0; i < inBufferSamples; i++) {
 			in[i * 2] = in[i * 2 + 1] = 0;
-			player->generate(reinterpret_cast<float*>(in.data() + i * 2), 1);
+			float* data = in.data() + i * 2;
+			player->generate(data, 1);
 			inBufferCount++;
 			if (player->atEnd() || !g_running) {
 				if (extendSamples > 0) {
 					extendSamples--;
 				}
 				else {
+					endOutput = true;
+					break;
+				}
+				if (-noSoundThreshold < data[0] && data[0] < noSoundThreshold &&
+					-noSoundThreshold < data[1] && data[1] < noSoundThreshold) {
+					zeroCounter++;
+				}
+				else {
+					zeroCounter = 0;
+				}
+				if (g_wavOutputMarginAuto && zeroCounter >= 128) {
+					// 128サンプル無音なら終了と見做す
+					endOutput = true;
 					break;
 				}
 			}
