@@ -25,53 +25,6 @@ extern "C" {
 
 #include <atomic>
 
-static void OnDefaultRenderDeviceChanged(LPCWSTR pwstrDeviceId);
-
-class DeviceNotificationClient : public IMMNotificationClient
-{
-	LONG _ref = 1;
-
-public:
-	// IUnknown
-	ULONG STDMETHODCALLTYPE AddRef() override {
-		return InterlockedIncrement(&_ref);
-	}
-	ULONG STDMETHODCALLTYPE Release() override {
-		ULONG r = InterlockedDecrement(&_ref);
-		if (r == 0) delete this;
-		return r;
-	}
-	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppv) override {
-		if (riid == __uuidof(IUnknown) ||
-			riid == __uuidof(IMMNotificationClient)) {
-			*ppv = this;
-			AddRef();
-			return S_OK;
-		}
-		*ppv = nullptr;
-		return E_NOINTERFACE;
-	}
-
-	// 重要：既定デバイス変更
-	HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(
-		EDataFlow flow,
-		ERole role,
-		LPCWSTR pwstrDeviceId) override
-	{
-		if (flow == eRender && role == eConsole) {
-			// ここで再初期化を指示
-			OnDefaultRenderDeviceChanged(pwstrDeviceId);
-		}
-		return S_OK;
-	}
-
-	// 未使用でも実装必須
-	HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR) override { return S_OK; }
-	HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR) override { return S_OK; }
-	HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR, DWORD) override { return S_OK; }
-	HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR, const PROPERTYKEY) override { return S_OK; }
-};
-
 #endif
 
 #define WM_USER_TRAYICON		(WM_USER + 1)
@@ -1032,6 +985,50 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 }
 
 #ifndef USE_SDL
+class DeviceNotificationClient : public IMMNotificationClient
+{
+	LONG _ref = 1;
+
+public:
+	// IUnknown
+	ULONG STDMETHODCALLTYPE AddRef() override {
+		return InterlockedIncrement(&_ref);
+	}
+	ULONG STDMETHODCALLTYPE Release() override {
+		ULONG r = InterlockedDecrement(&_ref);
+		if (r == 0) delete this;
+		return r;
+	}
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppv) override {
+		if (riid == __uuidof(IUnknown) ||
+			riid == __uuidof(IMMNotificationClient)) {
+			*ppv = this;
+			AddRef();
+			return S_OK;
+		}
+		*ppv = nullptr;
+		return E_NOINTERFACE;
+	}
+
+	// 既定デバイス変更
+	HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(
+		EDataFlow flow,
+		ERole role,
+		LPCWSTR pwstrDeviceId) override
+	{
+		if (flow == eRender && role == eConsole) {
+			g_restart = true;
+		}
+		return S_OK;
+	}
+
+	// 未使用でも実装必須
+	HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR) override { return S_OK; }
+	HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR) override { return S_OK; }
+	HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR, DWORD) override { return S_OK; }
+	HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR, const PROPERTYKEY) override { return S_OK; }
+};
+
 // ----------------------------------------------------------------------------
 void StartWasapiAudio(OPLPlayer *player)
 {
@@ -1042,6 +1039,7 @@ void StartWasapiAudio(OPLPlayer *player)
 	IAudioRenderClient* renderClient = nullptr;
 	WAVEFORMATEX* mixFmt = nullptr;
 	SRC_STATE* srconv = nullptr;
+	DeviceNotificationClient* notify = nullptr;
 
 	HANDLE hAudioEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	if (hAudioEvent == NULL) {
@@ -1055,6 +1053,13 @@ void StartWasapiAudio(OPLPlayer *player)
 	if (FAILED(hr)) {
 		fprintf(stderr, "MMDeviceEnumerator CoCreateInstance failed\n");
 		goto finalize;
+	}
+
+	notify = new DeviceNotificationClient();
+	hr = enumerator->RegisterEndpointNotificationCallback(notify);
+	if (FAILED(hr)) {
+		delete notify;
+		notify = nullptr;
 	}
 
 	hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
@@ -1140,7 +1145,7 @@ void StartWasapiAudio(OPLPlayer *player)
 				goto finalize;
 			}
 
-			while (g_running)
+			while (g_running && !g_restart)
 			{
 				if (g_paused)
 				{
@@ -1240,6 +1245,12 @@ finalize:
 	if (srconv) src_delete(srconv);
 	srconv = nullptr;
 
+	if (notify) {
+		enumerator->UnregisterEndpointNotificationCallback(notify);
+		delete notify;
+		notify = nullptr;
+	}
+
 	if (renderClient) renderClient->Release();
 	if (audioClient) audioClient->Release();
 	if (device) device->Release();
@@ -1259,7 +1270,7 @@ void AudioThread()
 	auto player = g_player;
 	if (!player) return;
 
-	CoInitialize(nullptr);
+	if (FAILED(CoInitialize(nullptr))) return;
 
 	do {
 		g_restart = false;
@@ -1269,11 +1280,6 @@ void AudioThread()
 	g_running = false;
 
 	CoUninitialize();
-}
-
-static void OnDefaultRenderDeviceChanged(LPCWSTR pwstrDeviceId)
-{
-
 }
 
 static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, bool traymode)
