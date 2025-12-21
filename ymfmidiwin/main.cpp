@@ -53,8 +53,13 @@ static bool g_running = true;
 static bool g_paused = false;
 static bool g_looping = true;
 static bool g_sleeping = false;
+static bool g_restart = false;
 
 static OPLPlayer *g_player = nullptr;
+
+static int g_srconvtype = SRC_SINC_FASTEST;
+static int g_wavOutputMarginMillisecond = 1000;
+static bool g_wavOutputMarginAuto = true;
 
 #ifdef USE_SDL
 static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
@@ -89,7 +94,12 @@ void usage()
 	"  -f / --filter <num>     set highpass cutoff in Hz (default 5.0)\n"
 	"\n"
 	"  -t / --tray             resides in the task tray\n"
-	"  -p / --ptime            Time to enter sleep mode (msec; default 15000)\n"
+	"  -p / --ptime            time to enter sleep mode (msec; default 15000)\n"
+	"\n"
+	"  --resampler <nearest|linear|sinc_fast|sinc_medium|sinc_best>\n"
+	"                          resampler type (default sinc_fast)\n"
+	"  --tail-time <num>       extra tail time to append to the WAV output\n"
+	"                          (msec; default auto)\n"
 	"\n"
 	);
 
@@ -111,6 +121,8 @@ static const option options[] =
 	{"filter",    1, nullptr, 'f'},
 	{"tray",      0, nullptr, 't'},
 	{"ptime",     0, nullptr, 'p'},
+	{"resampler", 1, nullptr,  0 },
+	{"tail-time", 1, nullptr,  0 },
 	{0}
 };
 
@@ -452,7 +464,8 @@ int main(int argc, char **argv)
 	printf("ymfmidi for Windows v" VERSION " - " __DATE__ "\n");
 
 	char opt;
-	while ((opt = getopt_long(argc, argv, ":hq1s:o:c:n:mb:g:r:f:tp:", options, nullptr)) != -1)
+	int optionindex = 0;
+	while ((opt = getopt_long(argc, argv, ":hq1s:o:c:n:mb:g:r:f:tp:", options, &optionindex)) != -1)
 	{
 		switch (opt)
 		{
@@ -547,6 +560,38 @@ int main(int argc, char **argv)
 		case 'p':
 			// サスペンド時間
 			suspendTimeMilliseconds = atoi(optarg);
+			break;
+
+		case 0:
+			if (strcmp(options[optionindex].name, "resampler") == 0) {
+				// サンプリング変換タイプ
+				if (strcmp(optarg, "linear") == 0) {
+					g_srconvtype = SRC_LINEAR;
+				}
+				else if (strcmp(optarg, "nearest") == 0) {
+					g_srconvtype = SRC_ZERO_ORDER_HOLD;
+				}
+				else if (strcmp(optarg, "sinc") == 0 || strcmp(optarg, "sinc_fast") == 0) {
+					g_srconvtype = SRC_SINC_FASTEST;
+				}
+				else if (strcmp(optarg, "sinc_medium") == 0) {
+					g_srconvtype = SRC_SINC_MEDIUM_QUALITY;
+				}
+				else if (strcmp(optarg, "sinc_best") == 0) {
+					g_srconvtype = SRC_SINC_BEST_QUALITY;
+				}
+			}
+			else if (strcmp(options[optionindex].name, "tail-time") == 0) {
+				// WAV出力時の末尾のマージン時間
+				if (strcmp(optarg, "auto") == 0) {
+					g_wavOutputMarginAuto = true;
+				}
+				else {
+					g_wavOutputMarginAuto = false;
+					g_wavOutputMarginMillisecond = atoi(optarg);
+					if (g_wavOutputMarginMillisecond < 0) g_wavOutputMarginMillisecond = 0;
+				}
+			}
 			break;
 		}
 	}
@@ -775,38 +820,109 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 	fseek(wav, 44, SEEK_SET);
 	
 	uint32_t numSamples = 0;
-	uint16_t samples[2];
-	char outSamples[4];
-	const unsigned bytesPerSample = player->stereo() ? 4 : 2;
+	const int nChannels = player->stereo() ? 2 : 1;
+	const unsigned bytesPerSample = nChannels * 2;
 	const uint32_t sampleRate = player->sampleRate();
 	const int displayStep = sampleRate / 10;
-	const int writeBufferSize = 4096;
-	uint32_t writeBufferPos = 0;
-	uint32_t writeBuffer[writeBufferSize] = { 0 };
 
-	while (!player->atEnd() && g_running)
+	// --- libsamplerate ---
+	int err = 0;
+	SRC_STATE* src = src_new(
+		g_srconvtype,
+		player->stereo() ? 2 : 1,
+		&err);
+
+	double ratio = (double)sampleRate / INTERNAL_SR;
+
+	player->setSampleRate(INTERNAL_SR); // OPL original rate
+
+	const int inBufferSamples = 4096;
+	const int outBufferSamples = inBufferSamples * ratio + 64; // マージン付けておく
+	std::vector<float> in(inBufferSamples * nChannels);
+	std::vector<float> out(outBufferSamples * nChannels);
+	std::vector<uint16_t> out16(outBufferSamples * nChannels);
+
+	// サンプリング変換改善のために無音データを放り込んでおく
 	{
-		player->generate(reinterpret_cast<int16_t*>(samples), 1);
-		outSamples[0] = samples[0];
-		outSamples[1] = samples[0] >> 8;
-		outSamples[2] = samples[1];
-		outSamples[3] = samples[1] >> 8;
-
-		writeBuffer[writeBufferPos] = *((uint32_t*)outSamples);
-		writeBufferPos++;
-		if (writeBufferPos >= writeBufferSize) {
-			if (fwrite(writeBuffer, bytesPerSample, writeBufferPos, wav) != writeBufferPos)
-			{
-				fprintf(stderr, "writing WAV data failed\n");
-				exit(1);
-			}
-			writeBufferPos = 0;
+		SRC_DATA d{};
+		for (int i = 0; i < inBufferSamples; i++) {
+			in[i] = 0;
 		}
-		numSamples++;
+		d.data_in = in.data();
+		d.input_frames = inBufferSamples;
+		d.data_out = out.data();
+		d.output_frames = outBufferSamples;
+		d.src_ratio = ratio;
+	}
 
-		if (interactive && numSamples % displayStep == 0) {
+	const int outwavMaxAmpitude = 32767;
+	const float noSoundThreshold = 1.0f / outwavMaxAmpitude; // 無音と見做す音量
+	int lastDispPos = 0;
+	int extendSamples = g_wavOutputMarginAuto ? (INTERNAL_SR * 5) : (int)((int64_t)g_wavOutputMarginMillisecond * INTERNAL_SR / 1000); // 指定した時間のばす。自動で末尾を探すのは5秒以内
+	int zeroCounter = 0;
+	bool endOutput = false;
+	while ((!player->atEnd() || extendSamples > 0) && g_running && !endOutput)
+	{
+		uint32_t inBufferCount = 0;
+		for (int i = 0; i < inBufferSamples; i++) {
+			in[i * 2] = in[i * 2 + 1] = 0;
+			float* data = in.data() + i * 2;
+			player->generate(data, 1);
+			inBufferCount++;
+			if (player->atEnd() || !g_running) {
+				if (extendSamples > 0) {
+					extendSamples--;
+				}
+				else {
+					endOutput = true;
+					break;
+				}
+				if (-noSoundThreshold <= data[0] && data[0] <= noSoundThreshold &&
+					-noSoundThreshold <= data[1] && data[1] <= noSoundThreshold) {
+					zeroCounter++;
+				}
+				else {
+					zeroCounter = 0;
+				}
+				if (g_wavOutputMarginAuto && zeroCounter >= INTERNAL_SR / 10) {
+					// INTERNAL_SR / 10 サンプル = 0.1秒無音なら終了と見做す
+					endOutput = true;
+					break;
+				}
+			}
+		}
+
+		// --- SR 変換 ---
+		SRC_DATA d{};
+		d.data_in = in.data();
+		d.input_frames = min(inBufferSamples, inBufferCount);
+		d.data_out = out.data();
+		d.output_frames = outBufferSamples;
+		d.src_ratio = ratio;
+
+		src_process(src, &d);
+
+		const int gensamples = d.output_frames_gen;
+		const int count = d.output_frames_gen * nChannels;
+		for (int i = 0; i < count; i++) {
+			float f1 = out[i] * outwavMaxAmpitude;
+			if (f1 < -outwavMaxAmpitude) f1 = -outwavMaxAmpitude;
+			if (f1 > +outwavMaxAmpitude) f1 = +outwavMaxAmpitude;
+			out16[i] = (uint16_t)round(f1);
+		}
+
+		if (fwrite(out16.data(), bytesPerSample, gensamples, wav) != gensamples)
+		{
+			fprintf(stderr, "writing WAV data failed\n");
+			exit(1);
+		}
+		numSamples += gensamples;
+
+		int curDispPos = numSamples / sampleRate;
+		if (interactive && curDispPos != lastDispPos) {
 			consolePos(4);
-			printf("Time: %d sec\n", numSamples / sampleRate);
+			printf("Time: %d sec\n", curDispPos);
+			lastDispPos = curDispPos;
 
 			printf("\ncontrols: [esc/q] quit\n");
 
@@ -817,13 +933,6 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 				g_running = false;
 				continue;
 			}
-		}
-	}
-	if (writeBufferPos > 0) {
-		if (fwrite(writeBuffer, bytesPerSample, writeBufferPos, wav) != writeBufferPos)
-		{
-			fprintf(stderr, "writing WAV data failed\n");
-			exit(1);
 		}
 	}
 	
@@ -890,172 +999,303 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 }
 
 #ifndef USE_SDL
-// ----------------------------------------------------------------------------
-void AudioThread()
+class DeviceNotificationClient : public IMMNotificationClient
 {
-	auto player = g_player;
-	if (!g_player) return;
+	LONG _ref = 1;
 
-	CoInitialize(nullptr);
+public:
+	// IUnknown
+	ULONG STDMETHODCALLTYPE AddRef() override {
+		return InterlockedIncrement(&_ref);
+	}
+	ULONG STDMETHODCALLTYPE Release() override {
+		ULONG r = InterlockedDecrement(&_ref);
+		if (r == 0) delete this;
+		return r;
+	}
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppv) override {
+		if (riid == __uuidof(IUnknown) ||
+			riid == __uuidof(IMMNotificationClient)) {
+			*ppv = this;
+			AddRef();
+			return S_OK;
+		}
+		*ppv = nullptr;
+		return E_NOINTERFACE;
+	}
 
+	// 既定デバイス変更
+	HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(
+		EDataFlow flow,
+		ERole role,
+		LPCWSTR pwstrDeviceId) override
+	{
+		if (flow == eRender && role == eConsole) {
+			g_restart = true;
+		}
+		return S_OK;
+	}
+
+	// 未使用でも実装必須
+	HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR) override { return S_OK; }
+	HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR) override { return S_OK; }
+	HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR, DWORD) override { return S_OK; }
+	HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR, const PROPERTYKEY) override { return S_OK; }
+};
+
+// ----------------------------------------------------------------------------
+void StartWasapiAudio(OPLPlayer *player)
+{
 	// --- WASAPI 初期化 ---
 	IMMDeviceEnumerator* enumerator = nullptr;
 	IMMDevice* device = nullptr;
 	IAudioClient* audioClient = nullptr;
 	IAudioRenderClient* renderClient = nullptr;
 	WAVEFORMATEX* mixFmt = nullptr;
+	SRC_STATE* srconv = nullptr;
+	DeviceNotificationClient* notify = new DeviceNotificationClient();
 
-	CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
-		CLSCTX_ALL, IID_PPV_ARGS(&enumerator));
+	bool notifyValid = false;
 
-	enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
-	device->Activate(__uuidof(IAudioClient),
+	HANDLE hAudioEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (hAudioEvent == NULL) {
+		return;
+	}
+
+	HRESULT hr = S_OK;
+
+	hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
+			CLSCTX_ALL, IID_PPV_ARGS(&enumerator));
+	if (FAILED(hr)) {
+		fprintf(stderr, "MMDeviceEnumerator CoCreateInstance failed\n");
+		goto finalize;
+	}
+
+	hr = enumerator->RegisterEndpointNotificationCallback(notify);
+	if (SUCCEEDED(hr)) {
+		notifyValid = true;
+	}
+	else {
+		notify->Release();
+	}
+
+	hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+	if (FAILED(hr)) {
+		Sleep(1000);
+		g_restart = true;
+		goto finalize;
+	}
+
+	hr = device->Activate(__uuidof(IAudioClient),
 		CLSCTX_ALL, nullptr, (void**)&audioClient);
+	if (FAILED(hr)) {
+		Sleep(1000);
+		g_restart = true;
+		goto finalize;
+	}
 
-	audioClient->GetMixFormat(&mixFmt);
+	hr = audioClient->GetMixFormat(&mixFmt);
+	if (FAILED(hr)) {
+		Sleep(1000);
+		g_restart = true;
+		goto finalize;
+	}
 
-	audioClient->Initialize(
+	hr = audioClient->Initialize(
 		AUDCLNT_SHAREMODE_SHARED,
 		AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
 		2000000,
 		0,
 		mixFmt,
 		nullptr);
-
-	audioClient->GetService(IID_PPV_ARGS(&renderClient));
-
-	UINT32 bufferFrames = 0;
-	audioClient->GetBufferSize(&bufferFrames);
-
-	auto* ext = (WAVEFORMATEXTENSIBLE*)mixFmt;
-	if (ext->SubFormat != KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
-	{
-		CoTaskMemFree(mixFmt);
-		CoUninitialize();
-		return;
+	if (FAILED(hr)) {
+		Sleep(1000);
+		g_restart = true;
+		goto finalize;
 	}
-
-	// --- libsamplerate ---
-	int err = 0;
-	SRC_STATE* src = src_new(
-		SRC_SINC_FASTEST,
-		mixFmt->nChannels,
-		&err);
-
-	double ratio =
-		double(mixFmt->nSamplesPerSec) / 50000.0;
-
-	// --- FIFO ---
-	std::vector<float> fifo;
-	const int fifosamples = bufferFrames;
-	fifo.reserve(fifosamples * mixFmt->nChannels);
-
-	const int outBufferSamples = fifosamples + 64;
-	const int inBufferSamples = (int)(fifosamples / ratio);
-	std::vector<float> in(inBufferSamples * mixFmt->nChannels);
-	std::vector<float> out(outBufferSamples * mixFmt->nChannels);
-
-	HANDLE hAudioEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	if (hAudioEvent == NULL) {
-		g_running = false;
-		src_delete(src);
-		CoTaskMemFree(mixFmt);
-		CoUninitialize();
-		return;
+	hr = audioClient->GetService(IID_PPV_ARGS(&renderClient));
+	if (FAILED(hr)) {
+		Sleep(1000);
+		g_restart = true;
+		goto finalize;
 	}
+	else {
+		UINT32 bufferFrames = 0;
+		audioClient->GetBufferSize(&bufferFrames);
 
-	audioClient->SetEventHandle(hAudioEvent);
-
-	audioClient->Start();
-
-	while (g_running)
-	{
-		if (g_paused)
+		auto* ext = (WAVEFORMATEXTENSIBLE*)mixFmt;
+		if (ext->SubFormat != KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
 		{
-			Sleep(100);
-			continue;
+			goto finalize;
 		}
 
-		UINT32 padding = 0;
-		audioClient->GetCurrentPadding(&padding);
+		// --- libsamplerate ---
+		int err = 0;
+		srconv = src_new(g_srconvtype, mixFmt->nChannels, &err);
+		if (!srconv) {
+			goto finalize;
+		}
+		else {
+			double ratio = (double)mixFmt->nSamplesPerSec / INTERNAL_SR;
 
-		UINT32 framesAvailable = bufferFrames - padding;
+			// --- FIFO ---
+			std::vector<float> fifo;
+			const int fifosamples = bufferFrames;
+			fifo.reserve(fifosamples * mixFmt->nChannels);
 
-		int sampleremain = fifosamples - fifo.size();
-		if (sampleremain > 0)
-		{
-			// --- 波形生成 ---
-			int samples = min(inBufferSamples, sampleremain);
-			player->generate(reinterpret_cast<float*>(in.data()), samples);
+			const int outBufferSamples = fifosamples + 64;
+			const int inBufferSamples = (int)(fifosamples / ratio);
+			std::vector<float> in(inBufferSamples * mixFmt->nChannels);
+			std::vector<float> out(outBufferSamples * mixFmt->nChannels);
 
-			if (!g_looping)
-				g_running &= !player->atEnd();
+			hr = audioClient->SetEventHandle(hAudioEvent);
+			if (FAILED(hr)) {
+				Sleep(1000);
+				g_restart = true;
+				goto finalize;
+			}
 
-			if (!player->isSleepMode()) {
-				if (g_sleeping) {
-					g_sleeping = false;
-					PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
+			hr = audioClient->Start();
+			if (FAILED(hr)) {
+				Sleep(1000);
+				g_restart = true;
+				goto finalize;
+			}
+
+			while (g_running && !g_restart)
+			{
+				if (g_paused)
+				{
+					Sleep(100);
+					continue;
 				}
 
-				// --- SR 変換 ---
-				SRC_DATA d{};
-				d.data_in = in.data();
-				d.input_frames = samples;
-				d.data_out = out.data();
-				d.output_frames = outBufferSamples;
-				d.src_ratio = ratio;
-
-				src_process(src, &d);
-
-				fifo.insert(
-					fifo.end(),
-					out.data(),
-					out.data() + d.output_frames_gen * mixFmt->nChannels);
-			}
-			else {
-				if (!g_sleeping) {
-					g_sleeping = true;
-					PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
+				UINT32 padding = 0;
+				hr = audioClient->GetCurrentPadding(&padding);
+				if (FAILED(hr)) {
+					Sleep(1000);
+					g_restart = true;
+					goto finalize;
 				}
-				Sleep(100);
-				continue;
+
+				UINT32 framesAvailable = bufferFrames - padding;
+
+				int sampleremain = fifosamples - fifo.size();
+				if (sampleremain > 0)
+				{
+					// --- 波形生成 ---
+					int samples = min(inBufferSamples, sampleremain);
+					player->generate(reinterpret_cast<float*>(in.data()), samples);
+
+					if (!g_looping)
+						g_running &= !player->atEnd();
+
+					if (!player->isSleepMode()) {
+						if (g_sleeping) {
+							g_sleeping = false;
+							PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
+						}
+
+						// --- SR 変換 ---
+						SRC_DATA d{};
+						d.data_in = in.data();
+						d.input_frames = samples;
+						d.data_out = out.data();
+						d.output_frames = outBufferSamples;
+						d.src_ratio = ratio;
+
+						src_process(srconv, &d);
+
+						fifo.insert(
+							fifo.end(),
+							out.data(),
+							out.data() + d.output_frames_gen * mixFmt->nChannels);
+					}
+					else {
+						if (!g_sleeping) {
+							g_sleeping = true;
+							PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
+						}
+						Sleep(100);
+						continue;
+					}
+				}
+
+				if (WaitForSingleObject(hAudioEvent, 200) == WAIT_TIMEOUT) {
+					continue;
+				}
+
+				// --- WASAPI 出力 ---
+				UINT32 fifoFrames = (UINT32)(fifo.size() / mixFmt->nChannels);
+				UINT32 framesToWrite = min(framesAvailable, fifoFrames);
+
+				if (framesToWrite > 0)
+				{
+					BYTE* data = nullptr;
+					hr = renderClient->GetBuffer(framesToWrite, &data);
+					if (FAILED(hr)) {
+						g_restart = true;
+						goto finalize;
+					}
+
+					memcpy(data,
+						fifo.data(),
+						framesToWrite * mixFmt->nBlockAlign);
+
+					hr = renderClient->ReleaseBuffer(framesToWrite, 0);
+					if (FAILED(hr)) {
+						g_restart = true;
+						goto finalize;
+					}
+
+					fifo.erase(
+						fifo.begin(),
+						fifo.begin() + framesToWrite * mixFmt->nChannels);
+				}
 			}
-		}
 
-		if (WaitForSingleObject(hAudioEvent, 200) == WAIT_TIMEOUT) {
-			continue;
-		}
-
-		// --- WASAPI 出力 ---
-		UINT32 fifoFrames = (UINT32)(fifo.size() / mixFmt->nChannels);
-		UINT32 framesToWrite = min(framesAvailable, fifoFrames);
-
-		if (framesToWrite > 0)
-		{
-			BYTE* data = nullptr;
-			renderClient->GetBuffer(framesToWrite, &data);
-
-			memcpy(data,
-				fifo.data(),
-				framesToWrite * mixFmt->nBlockAlign);
-
-			renderClient->ReleaseBuffer(framesToWrite, 0);
-
-			fifo.erase(
-				fifo.begin(),
-				fifo.begin() + framesToWrite * mixFmt->nChannels);
+			audioClient->Stop();
 		}
 	}
 
-	audioClient->Stop();
-	src_delete(src);
+finalize:
+	if (srconv) src_delete(srconv);
+	srconv = nullptr;
+
+	if (notifyValid) {
+		enumerator->UnregisterEndpointNotificationCallback(notify);
+		notify->Release();
+	}
+
+	if (renderClient) renderClient->Release();
+	if (audioClient) audioClient->Release();
+	if (device) device->Release();
+	if (enumerator) enumerator->Release();
+	renderClient = nullptr;
+	audioClient = nullptr;
+	device = nullptr;
+	enumerator = nullptr;
+
+	if (mixFmt) CoTaskMemFree(mixFmt);
+	mixFmt = nullptr;
 
 	CloseHandle(hAudioEvent);
+}
+void AudioThread()
+{
+	auto player = g_player;
+	if (!player) return;
 
-	CoTaskMemFree(mixFmt);
-	CoUninitialize();
+	if (FAILED(CoInitialize(nullptr))) return;
+
+	do {
+		g_restart = false;
+		StartWasapiAudio(player);
+	} while (g_running && g_restart);
 
 	g_running = false;
+
+	CoUninitialize();
 }
 
 static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, bool traymode)
@@ -1066,7 +1306,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 
 	std::thread audio(AudioThread);
 
-	player->setSampleRate(50000); // OPL original rate
+	player->setSampleRate(INTERNAL_SR); // OPL original rate
 
 	if (traymode) {
 		g_hInst = GetModuleHandle(nullptr);
