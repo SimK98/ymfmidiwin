@@ -1039,7 +1039,9 @@ void StartWasapiAudio(OPLPlayer *player)
 	IAudioRenderClient* renderClient = nullptr;
 	WAVEFORMATEX* mixFmt = nullptr;
 	SRC_STATE* srconv = nullptr;
-	DeviceNotificationClient* notify = nullptr;
+	DeviceNotificationClient* notify = new DeviceNotificationClient();
+
+	bool notifyValid = false;
 
 	HANDLE hAudioEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	if (hAudioEvent == NULL) {
@@ -1055,11 +1057,12 @@ void StartWasapiAudio(OPLPlayer *player)
 		goto finalize;
 	}
 
-	notify = new DeviceNotificationClient();
 	hr = enumerator->RegisterEndpointNotificationCallback(notify);
-	if (FAILED(hr)) {
-		delete notify;
-		notify = nullptr;
+	if (SUCCEEDED(hr)) {
+		notifyValid = true;
+	}
+	else {
+		notify->Release();
 	}
 
 	hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
@@ -1245,10 +1248,9 @@ finalize:
 	if (srconv) src_delete(srconv);
 	srconv = nullptr;
 
-	if (notify) {
+	if (notifyValid) {
 		enumerator->UnregisterEndpointNotificationCallback(notify);
-		delete notify;
-		notify = nullptr;
+		notify->Release();
 	}
 
 	if (renderClient) renderClient->Release();
