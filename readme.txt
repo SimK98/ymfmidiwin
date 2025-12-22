@@ -55,7 +55,7 @@ ymfmidiwin.exe -t //MIDIIN0
 ymfmidiwin [オプション] MIDIファイル名 [音色データファイル名]
 
 対応MIDIファイルフォーマット:  HMI, HMP, MID, MUS, RMI, XMI
-対応音色データフォーマット: AD, OPL, OP2, TMB, WOPL
+対応音色データフォーマット: AD, OPL, OP2, TMB, WOPL, FMSYNTH.BIN
 
 MIDIファイル名として//MIDIINと書くとMIDI INデバイスとして常駐します。
 
@@ -113,6 +113,22 @@ ymfmidiwin -t //MIDIIN
 指定したMIDIファイルを_ymfm.wavを付けてへ出力する
 ymfmidiwin -o . MIDIファイル名
 → 例えば、test.midならtest_ymfm.wavへ出力
+
+
+●Windows FM MIDIパッチファイル FMSYNTH.BINについて
+Windows標準のFM MIDI風の音色にしたい場合は、WindowsのSB16 FM MIDIドライバから
+パラメータを持ってくる必要があります。
+
+WinDDKにこのパラメータ定義がありますが、本来の目的外での配布は恐らく不味いので
+組み込むことはしません。 その代わりに、Windows NT4 DDKのSB16サンプルドライバに
+含まれるFMSYNTH.BINを引数に渡すと音色データとして読み込めるようにしておきました。
+ただしドラムはOPLのドラムモード依存（ymfmidi未対応）のようなので、ドラムだけは
+GENMIDI.op2から読むようにしています。 GENMIDI.op2をymfmidiwin.exeと同じ場所に
+置いておいてください。
+
+実はDDKを持っていなくても、NT4用のSound BlasterドライバのDLL(sndblst.dll等)にも
+全く同じものがリソースとして含まれています。 そこで、FMSYNTH.BIN相当のリソースを
+含むDLLを引数に渡したときにもリソースを引き抜いて使えるようにしておきました。
 
 
 ●その他情報

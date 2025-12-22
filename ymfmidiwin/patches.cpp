@@ -5,6 +5,8 @@
 #include "patches.h"
 #include "player.h"
 
+#include "pe_resource.h"
+
 // ----------------------------------------------------------------------------
 bool OPLPatch::load(OPLPatchSet& patches, const char *path)
 {
@@ -43,7 +45,9 @@ bool OPLPatch::load(OPLPatchSet& patches, const uint8_t *data, size_t size)
 	return loadWOPL(patches, data, size)
 	    || loadOP2(patches, data, size)
 	    || loadAIL(patches, data, size)
-	    || loadTMB(patches, data, size);
+	    || loadTMB(patches, data, size)
+		|| loadFMSYNTHBIN(patches, data, size)
+		|| loadFMSYNTHDLL(patches, data, size);
 }
 
 // ----------------------------------------------------------------------------
@@ -323,4 +327,90 @@ bool OPLPatch::loadTMB(OPLPatchSet& patches, const uint8_t *data, size_t size)
 	}
 	
 	return true;
+}
+
+// ----------------------------------------------------------------------------
+bool OPLPatch::loadFMSYNTHBIN(OPLPatchSet& patches, const uint8_t* data, size_t size)
+{
+	if (size != 256 * 28)
+		return false;
+
+	for (uint16_t key = 0; key < 128; key++) // 128以降はドラムのはず･･･だけど上手く鳴らない → たぶんBDhのドラムモード専用
+	{
+		OPLPatch& patch = patches[key];
+		// clear patch data
+		patch = OPLPatch();
+		patch.name = names[key];
+
+		const uint8_t* bytes = data + (key * 28);
+
+		PatchVoice& voice0 = patch.voice[0];
+		const uint8_t* bytesOp1 = bytes + 5 * 0;
+		voice0.op_mode[0] = bytesOp1[0];  // regs 0x20+
+		voice0.op_ksr[0] = bytesOp1[1] & 0xc0; // regs 0x40+ (upper bits)
+		voice0.op_level[0] = bytesOp1[1] & 0x3f; // regs 0x40+ (lower bits)
+		voice0.op_ad[0] = bytesOp1[2];    // regs 0x60+
+		voice0.op_sr[0] = bytesOp1[3];    // regs 0x80+
+		voice0.op_wave[0] = bytesOp1[4];  // regs 0xE0+
+
+		const uint8_t* bytesOp2 = bytes + 5 * 1;
+		voice0.op_mode[1] = bytesOp2[0];  // regs 0x20+
+		voice0.op_ksr[1] = bytesOp2[1] & 0xc0; // regs 0x40+ (upper bits)
+		voice0.op_level[1] = bytesOp2[1] & 0x3f; // regs 0x40+ (lower bits)
+		voice0.op_ad[1] = bytesOp2[2];    // regs 0x60+
+		voice0.op_sr[1] = bytesOp2[3];    // regs 0x80+
+		voice0.op_wave[1] = bytesOp2[4];  // regs 0xE0+
+
+		PatchVoice& voice1 = patch.voice[1];
+		const uint8_t* bytesOp3 = bytes + 5 * 2;
+		voice1.op_mode[0] = bytesOp3[0];  // regs 0x20+
+		voice1.op_ksr[0] = bytesOp3[1] & 0xc0; // regs 0x40+ (upper bits)
+		voice1.op_level[0] = bytesOp3[1] & 0x3f; // regs 0x40+ (lower bits)
+		voice1.op_ad[0] = bytesOp3[2];    // regs 0x60+
+		voice1.op_sr[0] = bytesOp3[3];    // regs 0x80+
+		voice1.op_wave[0] = bytesOp3[4];  // regs 0xE0+
+
+		const uint8_t* bytesOp4 = bytes + 5 * 3;
+		voice1.op_mode[1] = bytesOp4[0];  // regs 0x20+
+		voice1.op_ksr[1] = bytesOp4[1] & 0xc0; // regs 0x40+ (upper bits)
+		voice1.op_level[1] = bytesOp4[1] & 0x3f; // regs 0x40+ (lower bits)
+		voice1.op_ad[1] = bytesOp4[2];    // regs 0x60+
+		voice1.op_sr[1] = bytesOp4[3];    // regs 0x80+
+		voice1.op_wave[1] = bytesOp4[4];  // regs 0xE0+
+
+		const uint8_t* bytesMisc = bytes + 5 * 4;
+		voice0.conn = bytesMisc[4];          // regs 0xC0+
+		voice1.conn = bytesMisc[5];          // regs 0xC0+
+
+		voice0.tune = (int8_t)((((int)(bytesMisc[2] >> 2) & 0x7) - 4) * 12) - 12;
+		voice1.tune = (int8_t)((((int)(bytesMisc[3] >> 2) & 0x7) - 4) * 12) - 12;
+
+		patch.dualTwoOp = bytesMisc[6] == 1;
+		patch.fourOp = !patch.dualTwoOp && bytesMisc[6] == 0;
+
+		patch.fixedNote = 0;
+		patch.velocity = 0; // MIDI velocity offset
+
+		if (key >= 128) {
+			patch.useRhythm = true;
+			voice0.tune = 0;
+			voice1.tune = 0;
+			patch.rhythmValue = bytesMisc[2];
+		}
+	}
+
+	return true;
+}
+bool OPLPatch::loadFMSYNTHDLL(OPLPatchSet& patches, const uint8_t* data, size_t size)
+{
+	std::vector<uint8_t> bin;
+	if (!ExtractResourceBySizeFromMemoryPE(data, size, 256 * 28, bin)) {
+		return false;
+	}
+
+	if (bin.empty()) {
+		return false;
+	}
+
+	return loadFMSYNTHBIN(patches, bin.data(), bin.size());
 }

@@ -160,6 +160,8 @@ private:
 		
 		REG_4OP         = 0x104,
 		REG_NEW         = 0x105,
+
+		REG_RYTHM       = 0xBD,
 	};
 
 	void updateMIDI();
@@ -205,6 +207,7 @@ private:
 	std::vector<ymfm::ymf262*> m_opl3;
 	unsigned m_numChips;
 	ChipType m_chipType;
+	bool m_hasRhythm;
 	
 	bool m_stereo;
 	uint32_t m_sampleRate; // output sample rate (default 44.1k)

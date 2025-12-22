@@ -40,7 +40,7 @@ extern "C" {
 #include "player.h"
 #include <thread>
 
-#define VERSION "0.6.0"
+#define VERSION "0.6.2.0"
 
 static HINSTANCE g_hInst = nullptr;
 static HICON g_hIcon = nullptr;
@@ -75,7 +75,7 @@ void usage()
 	"usage: ymfmidiwin [options] song_path [patch_path]\n"
 	"\n"
 	"supported song formats:  HMI, HMP, MID, MUS, RMI, XMI\n"
-	"supported patch formats: AD, OPL, OP2, TMB, WOPL\n"
+	"supported patch formats: AD, OPL, OP2, TMB, WOPL, FMSYNTH.BIN\n"
 	"\n"
 	"supported options:\n"
 	"  -h / --help             show this information and exit\n"
@@ -449,6 +449,7 @@ int main(int argc, char **argv)
 	const char* songPath;
 	const char* patchPath = "GENMIDI.wopl";
 	const char* wavPath = nullptr;
+	char patchPathTemp[MAX_PATH] = { 0 };
 	int sampleRate = 44100;
 	int bufferSize = 4096;
 	double gain = 1.0;
@@ -604,7 +605,7 @@ int main(int argc, char **argv)
 		patchPath = argv[optind + 1];
 	{
 		const char* fileext = strrchr(songPath, '.');
-		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0 || _stricmp(fileext, ".op2") == 0 || _stricmp(fileext, ".tmb") == 0 || _stricmp(fileext, ".ad") == 0)) {
+		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0 || _stricmp(fileext, ".op2") == 0 || _stricmp(fileext, ".tmb") == 0 || _stricmp(fileext, ".ad") == 0 || _stricmp(fileext, ".bin") == 0 || _stricmp(fileext, ".dll") == 0)) {
 			const char* tmp = patchPath;
 			patchPath = songPath;
 			songPath = tmp;
@@ -618,8 +619,27 @@ int main(int argc, char **argv)
 		fprintf(stderr, "couldn't load %s\n", songPath);
 		exit(1);
 	}
-	
-	if (!player->loadPatches(patchPath))
+
+	const char* patchFileNameExt = strrchr(patchPath, '.');
+	if (patchFileNameExt && (_stricmp(patchFileNameExt, ".bin") == 0 || _stricmp(patchFileNameExt, ".dll") == 0)) {
+		// WinFM系はドラムが上手く鳴らないのでGENMIDIから読む・・・
+		std::string path = GetExeDirectory();
+		path += "\\GENMIDI.op2";
+		if (!player->loadPatches(path.c_str()))
+		{
+			std::string path = GetExeDirectory();
+			path += "\\GENMIDI.wopl";
+			player->loadPatches(path.c_str());
+			// 失敗しても無視
+		}
+		// その後でFMSYNTH.BINで上書き
+		if (!player->loadPatches(patchPath))
+		{
+			fprintf(stderr, "couldn't load %s\n", patchPath);
+			exit(1);
+		}
+	}
+	else if (!player->loadPatches(patchPath))
 	{
 		// exeと同じ場所にあればそれを使う
 		std::string path = GetExeDirectory();
@@ -629,6 +649,8 @@ int main(int argc, char **argv)
 			fprintf(stderr, "couldn't load %s\n", patchPath);
 			exit(1);
 		}
+		strcpy_s(patchPathTemp, path.c_str());
+		patchPath = patchPathTemp;
 	}
 	
 	player->setLoop(g_looping);

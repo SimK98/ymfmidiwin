@@ -366,7 +366,7 @@ void OPLPlayer::displayChannels()
 		}
 	}
 	
-	printf("Chn | Patch Name                       | Vol | Pan | Active Voices: %u/%-6llu\n", totalVoices, m_voices.size());
+	printf("Chn | Patch Name                       | Vol | Pan | Active Voices: %u/%-6lu\n", totalVoices, (uint32_t)m_voices.size());
 	printf("----+----------------------------------+-----+-----+---------------------------\n");
 	for (int i = 0; i < 16; i++)
 	{

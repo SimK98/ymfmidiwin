@@ -113,6 +113,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -150,6 +151,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -170,6 +172,7 @@
     <ClInclude Include="libsamplerate\mid_qual_coeffs.h" />
     <ClInclude Include="libsamplerate\samplerate.h" />
     <ClInclude Include="patches.h" />
+    <ClInclude Include="pe_resource.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="sequence.h" />
@@ -203,6 +206,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="patches.cpp" />
     <ClCompile Include="patchnames.cpp" />
+    <ClCompile Include="pe_resource.cpp" />
     <ClCompile Include="player.cpp" />
     <ClCompile Include="sequence.cpp" />
     <ClCompile Include="sequence_hmi.cpp" />
