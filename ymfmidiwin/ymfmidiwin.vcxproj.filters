@@ -123,6 +123,9 @@
     <ClInclude Include="resource.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="pe_resource.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="sequence_hmi.cpp">
@@ -201,6 +204,9 @@
       <Filter>ソース ファイル\libsamplerate</Filter>
     </ClCompile>
     <ClCompile Include="sequence_midiin.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="pe_resource.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

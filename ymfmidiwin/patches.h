@@ -50,6 +50,7 @@ private:
 	static bool loadAIL(OPLPatchSet& patches, const uint8_t *data, size_t size);
 	static bool loadTMB(OPLPatchSet& patches, const uint8_t *data, size_t size);
 	static bool loadFMSYNTHBIN(OPLPatchSet& patches, const uint8_t* data, size_t size);
+	static bool loadFMSYNTHDLL(OPLPatchSet& patches, const uint8_t* data, size_t size);
 };
 
 #endif // __PATCHES_H

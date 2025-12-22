@@ -5,6 +5,8 @@
 #include "patches.h"
 #include "player.h"
 
+#include "pe_resource.h"
+
 // ----------------------------------------------------------------------------
 bool OPLPatch::load(OPLPatchSet& patches, const char *path)
 {
@@ -44,7 +46,8 @@ bool OPLPatch::load(OPLPatchSet& patches, const uint8_t *data, size_t size)
 	    || loadOP2(patches, data, size)
 	    || loadAIL(patches, data, size)
 	    || loadTMB(patches, data, size)
-		|| loadFMSYNTHBIN(patches, data, size);
+		|| loadFMSYNTHBIN(patches, data, size)
+		|| loadFMSYNTHDLL(patches, data, size);
 }
 
 // ----------------------------------------------------------------------------
@@ -397,4 +400,17 @@ bool OPLPatch::loadFMSYNTHBIN(OPLPatchSet& patches, const uint8_t* data, size_t 
 	}
 
 	return true;
+}
+bool OPLPatch::loadFMSYNTHDLL(OPLPatchSet& patches, const uint8_t* data, size_t size)
+{
+	std::vector<uint8_t> bin;
+	if (!ExtractResourceBySizeFromMemoryPE(data, size, 256 * 28, bin)) {
+		return false;
+	}
+
+	if (bin.empty()) {
+		return false;
+	}
+
+	return loadFMSYNTHBIN(patches, bin.data(), bin.size());
 }
