@@ -40,7 +40,7 @@ extern "C" {
 #include "player.h"
 #include <thread>
 
-#define VERSION "0.6.0"
+#define VERSION "0.6.2.0"
 
 static HINSTANCE g_hInst = nullptr;
 static HICON g_hIcon = nullptr;
@@ -75,7 +75,7 @@ void usage()
 	"usage: ymfmidiwin [options] song_path [patch_path]\n"
 	"\n"
 	"supported song formats:  HMI, HMP, MID, MUS, RMI, XMI\n"
-	"supported patch formats: AD, OPL, OP2, TMB, WOPL\n"
+	"supported patch formats: AD, OPL, OP2, TMB, WOPL, FMSYNTH.BIN\n"
 	"\n"
 	"supported options:\n"
 	"  -h / --help             show this information and exit\n"
@@ -604,7 +604,10 @@ int main(int argc, char **argv)
 		patchPath = argv[optind + 1];
 	{
 		const char* fileext = strrchr(songPath, '.');
-		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0 || _stricmp(fileext, ".op2") == 0 || _stricmp(fileext, ".tmb") == 0 || _stricmp(fileext, ".ad") == 0)) {
+		const char* filename = strrchr(songPath, '\\');
+		if (!filename) filename = songPath;
+		if (*filename == '\\') filename++;
+		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0 || _stricmp(fileext, ".op2") == 0 || _stricmp(fileext, ".tmb") == 0 || _stricmp(fileext, ".ad") == 0 || _stricmp(filename, "FMSYNTH.BIN") == 0)) {
 			const char* tmp = patchPath;
 			patchPath = songPath;
 			songPath = tmp;
@@ -618,8 +621,29 @@ int main(int argc, char **argv)
 		fprintf(stderr, "couldn't load %s\n", songPath);
 		exit(1);
 	}
-	
-	if (!player->loadPatches(patchPath))
+
+	const char* patchFileName = strrchr(patchPath, '\\');
+	if (!patchFileName) patchFileName = patchPath;
+	if (*patchFileName == '\\') patchFileName++;
+	if (_stricmp(patchFileName, "FMSYNTH.BIN") == 0) {
+		// FMSYNTH.BINはドラムが上手く鳴らないのでGENMIDIから読む・・・
+		std::string path = GetExeDirectory();
+		path += "\\GENMIDI.op2";
+		if (!player->loadPatches(path.c_str()))
+		{
+			std::string path = GetExeDirectory();
+			path += "\\GENMIDI.wopl";
+			player->loadPatches(path.c_str());
+			// 失敗しても無視
+		}
+		// その後でFMSYNTH.BINで上書き
+		if (!player->loadPatches(patchPath))
+		{
+			fprintf(stderr, "couldn't load %s\n", patchPath);
+			exit(1);
+		}
+	}
+	else if (!player->loadPatches(patchPath))
 	{
 		// exeと同じ場所にあればそれを使う
 		std::string path = GetExeDirectory();

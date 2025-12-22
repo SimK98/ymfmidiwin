@@ -32,6 +32,9 @@ struct OPLPatch
 	int8_t velocity = 0; // MIDI velocity offset
 	
 	PatchVoice voice[2];
+
+	bool useRhythm = false;
+	int8_t rhythmValue = 0;
 	
 	// default names
 	static const char* names[256];
@@ -46,6 +49,7 @@ private:
 	static bool loadOP2(OPLPatchSet& patches, const uint8_t *data, size_t size);
 	static bool loadAIL(OPLPatchSet& patches, const uint8_t *data, size_t size);
 	static bool loadTMB(OPLPatchSet& patches, const uint8_t *data, size_t size);
+	static bool loadFMSYNTHBIN(OPLPatchSet& patches, const uint8_t* data, size_t size);
 };
 
 #endif // __PATCHES_H
