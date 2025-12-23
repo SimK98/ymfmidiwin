@@ -2,6 +2,7 @@
 #include <signal.h>
 #include <windows.h>
 #include <getopt.h>
+#include <sstream>
 
 #include "resource.h"
 
@@ -20,6 +21,7 @@ extern "C" {
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "avrt.lib")
 #pragma comment(lib, "uuid.lib")
+#pragma comment(lib, "Version.lib")
 
 #include <samplerate.h>
 
@@ -43,12 +45,11 @@ extern "C" {
 #include "player.h"
 #include <thread>
 
-#define VERSION "0.6.2.1"
-
 static HINSTANCE g_hInst = nullptr;
 static HICON g_hIcon = nullptr;
 static HICON g_hIconSleep = nullptr;
 static HWND g_hWnd = nullptr;
+static HWND g_dialoghWnd = nullptr;
 
 UINT g_WM_TASKBARCREATED = UINT_MAX;
 
@@ -324,6 +325,80 @@ int RestartApplication()
 	return 0;
 }
 
+std::wstring GetFileVersionString() {
+	wchar_t buffer[MAX_PATH];
+	DWORD length = GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+	if (length == 0) return std::wstring(L"");
+
+	DWORD dummy;
+	DWORD size = GetFileVersionInfoSizeW(buffer, &dummy);
+	if (size == 0) {
+		return L"";
+	}
+
+	std::vector<BYTE> versionData(size);
+	if (!GetFileVersionInfoW(buffer, 0, size, versionData.data())) {
+		return L"";
+	}
+
+	VS_FIXEDFILEINFO* fileInfo = nullptr;
+	UINT len = 0;
+	if (!VerQueryValueW(versionData.data(), L"\\", reinterpret_cast<LPVOID*>(&fileInfo), &len)) {
+		return L"";
+	}
+
+	if (fileInfo == nullptr) {
+		return L"";
+	}
+
+	std::wstringstream versionStream;
+	versionStream << HIWORD(fileInfo->dwFileVersionMS) << L"."
+		<< LOWORD(fileInfo->dwFileVersionMS) << L"."
+		<< HIWORD(fileInfo->dwFileVersionLS) << L"."
+		<< LOWORD(fileInfo->dwFileVersionLS);
+
+	return versionStream.str();
+}
+
+
+INT_PTR CALLBACK AboutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM)
+{
+	switch (msg)
+	{
+	case WM_INITDIALOG:
+	{
+		g_dialoghWnd = hDlg;
+
+		SetDlgItemText(hDlg, IDC_VERSION, GetFileVersionString().c_str());
+
+		RECT rcDlg;
+		GetWindowRect(hDlg, &rcDlg);
+
+		int dlgWidth = rcDlg.right - rcDlg.left;
+		int dlgHeight = rcDlg.bottom - rcDlg.top;
+
+		int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+		int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+		int x = (screenWidth - dlgWidth) / 2;
+		int y = (screenHeight - dlgHeight) / 2;
+
+		SetWindowPos(hDlg, nullptr, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
+		return TRUE;
+	}
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+		{
+			g_dialoghWnd = nullptr;
+			EndDialog(hDlg, IDOK);
+			return TRUE;
+		}
+		break;
+	}
+	return FALSE;
+}
+
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
@@ -333,6 +408,11 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 		case WM_RBUTTONUP:
 		{
+			if (g_dialoghWnd) {
+				SetForegroundWindow(g_dialoghWnd);
+				return 0;
+			}
+
 			POINT pt;
 			GetCursorPos(&pt);
 
@@ -412,7 +492,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 			return 0;
 		case ID_TRAY_ABOUT:
-			MessageBox(hwnd, TEXT("ymfmidi for Windows v" VERSION " - " __DATE__ "\nThis softwerare includes components licensed under the BSD License. See LICENSE.txt for details."), TEXT("About"), MB_OK | MB_ICONINFORMATION);
+			DialogBox(g_hInst, MAKEINTRESOURCE(IDD_ABOUT), hwnd, AboutDlgProc);
 			return 0;
 		case ID_TRAY_EXIT:
 			g_running = false;
@@ -502,7 +582,7 @@ int main(int argc, char **argv)
 
 	EnableHighDpiScaling();
 
-	printf("ymfmidi for Windows v" VERSION " - " __DATE__ "\n");
+	wprintf((std::wstring(L"ymfmidi for Windows v") + GetFileVersionString() + std::wstring(L" - " __DATE__ "\n")).c_str());
 
 	char opt;
 	int optionindex = 0;
