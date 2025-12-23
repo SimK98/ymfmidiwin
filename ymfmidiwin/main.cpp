@@ -33,6 +33,9 @@ extern "C" {
 #define ID_TRAY_MIDIPANIC	1002
 #define ID_TRAY_ABOUT		1003
 #define ID_TRAY_RESTART		1004
+#define ID_TRAY_GM_RESET	1005
+#define ID_TRAY_GS_RESET	1006
+#define ID_TRAY_XG_RESET	1007
 
 #define INTERNAL_SR 50000
 
@@ -56,6 +59,8 @@ static bool g_sleeping = false;
 static bool g_restart = false;
 
 static OPLPlayer *g_player = nullptr;
+
+static char g_patchName[MAX_PATH] = { 0 };
 
 static int g_srconvtype = SRC_SINC_FASTEST;
 static int g_wavOutputMarginMillisecond = 1000;
@@ -331,8 +336,28 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			POINT pt;
 			GetCursorPos(&pt);
 
+			OPLPlayer::MIDIType midiType = g_player->getMidiType();
+
+			HMENU hSubMenu = CreatePopupMenu();
+			AppendMenu(hSubMenu, MF_STRING, ID_TRAY_GM_RESET, TEXT("GM Reset"));
+			AppendMenu(hSubMenu, MF_STRING, ID_TRAY_GS_RESET, TEXT("GS Reset"));
+			AppendMenu(hSubMenu, MF_STRING, ID_TRAY_XG_RESET, TEXT("XG Reset"));
+
 			HMENU hMenu = CreatePopupMenu();
+			AppendMenuA(hMenu, MF_STRING | MF_GRAYED, 0, g_player->getSequencerFriendlyName().c_str());
+			AppendMenuA(hMenu, MF_STRING | MF_GRAYED, 0, ("[PATCH] " + std::string(g_patchName)).c_str());
+			if (midiType == OPLPlayer::GeneralMIDI || midiType == OPLPlayer::GeneralMIDI2) {
+				AppendMenu(hMenu, MF_STRING | MF_GRAYED, 0, TEXT("[MODE] General MIDI"));
+			}
+			else if (midiType == OPLPlayer::RolandGS) {
+				AppendMenu(hMenu, MF_STRING | MF_GRAYED, 0, TEXT("[MODE] Roland GS"));
+			}
+			else if (midiType == OPLPlayer::YamahaXG) {
+				AppendMenu(hMenu, MF_STRING | MF_GRAYED, 0, TEXT("[MODE] Yamaha XG"));
+			}
+			AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_MIDIPANIC, TEXT("MIDI Panic"));
+			AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenu, TEXT("Reset"));
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_ABOUT, TEXT("About..."));
 			AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_RESTART, TEXT("Restart"));
@@ -368,7 +393,22 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 		case ID_TRAY_MIDIPANIC:
 			if (g_player) {
-				g_player->resetOPL();
+				g_player->panic();
+			}
+			return 0;
+		case ID_TRAY_GM_RESET:
+			if (g_player) {
+				g_player->resetMIDI(OPLPlayer::GeneralMIDI);
+			}
+			return 0;
+		case ID_TRAY_GS_RESET:
+			if (g_player) {
+				g_player->resetMIDI(OPLPlayer::RolandGS);
+			}
+			return 0;
+		case ID_TRAY_XG_RESET:
+			if (g_player) {
+				g_player->resetMIDI(OPLPlayer::YamahaXG);
 			}
 			return 0;
 		case ID_TRAY_ABOUT:
@@ -652,6 +692,7 @@ int main(int argc, char **argv)
 		strcpy_s(patchPathTemp, path.c_str());
 		patchPath = patchPathTemp;
 	}
+	strcpy_s(g_patchName, shortPath(patchPath));
 	
 	player->setLoop(g_looping);
 	player->setSampleRate(sampleRate);

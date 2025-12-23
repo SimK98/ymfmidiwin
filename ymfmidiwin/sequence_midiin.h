@@ -337,6 +337,8 @@ public:
 
 	static bool isValid(const uint8_t* data, size_t size);
 
+    std::string GetFriendlyName();
+
 protected:
 	uint32_t m_portnum;
 

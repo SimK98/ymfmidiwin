@@ -558,7 +558,7 @@ void OPLPlayer::reset()
 }
 
 // ----------------------------------------------------------------------------
-void OPLPlayer::resetOPL()
+void OPLPlayer::resetMIDI()
 {
 	// reset MIDI channel and OPL voice status
 	m_midiType = GeneralMIDI;
@@ -582,6 +582,26 @@ void OPLPlayer::resetOPL()
 
 	m_samplesLeft = 0;
 	m_timePassed = 0;
+}
+void OPLPlayer::resetMIDI(MIDIType midiType)
+{
+	resetMIDI();
+	m_midiType = midiType;
+}
+
+// ----------------------------------------------------------------------------
+void OPLPlayer::panic()
+{
+	for (auto& voice : m_voices)
+	{
+		if (voice.on)
+		{
+			silenceVoice(voice);
+			voice.justChanged = voice.on;
+			voice.on = false;
+			write(voice.chip, REG_VOICE_FREQH + voice.num, voice.freq >> 8);
+		}
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -1216,7 +1236,7 @@ void OPLPlayer::midiSysEx(const uint8_t *data, uint32_t length)
 		if (length == 5 && /*data[1] == 0x7f &&*/ data[2] == 0x09)
 		{
 			if (data[3] == 0x01) {
-				resetOPL(); // リセット
+				resetMIDI(); // リセット
 				m_midiType = GeneralMIDI;
 			}
 			else if (data[3] == 0x03)
@@ -1247,13 +1267,13 @@ void OPLPlayer::midiSysEx(const uint8_t *data, uint32_t length)
 
 		if (address == 0x40007f) {
 			// GS Reset
-			resetOPL(); // リセット
+			resetMIDI(); // リセット
 		}
 	}
 	else if (length >= 8 && !memcmp(data, "\x43\x10\x4c\x00\x00\x7e\x00\xf7", 8)) // Yamaha
 	{
 		// XG Reset
-		resetOPL(); // リセット
+		resetMIDI(); // リセット
 		m_midiType = YamahaXG;
 	}
 }
@@ -1263,3 +1283,10 @@ double OPLPlayer::midiCalcBend(double semitones)
 {
 	return pow(2, semitones / 12.0);
 }
+
+// ----------------------------------------------------------------------------
+std::string OPLPlayer::getSequencerFriendlyName()
+{
+	return m_sequence->GetFriendlyName();
+}
+

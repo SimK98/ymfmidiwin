@@ -106,8 +106,11 @@ public:
 	
 	// reset OPL and midi file
 	void reset();
-	// reset OPL only
-	void resetOPL();
+	// reset MIDI only
+	void resetMIDI();
+	void resetMIDI(MIDIType midiType);
+	// panic
+	void panic();
 	// reached end of song?
 	bool atEnd() const;
 	// song selection (for files with multiple songs)
@@ -141,6 +144,10 @@ public:
 	const std::string& patchName(uint8_t num) { return m_patches[num].name; }
 
 	bool isSleepMode() const { return m_sleepMode; }
+
+	std::string getSequencerFriendlyName();
+
+	OPLPlayer::MIDIType getMidiType() const { return m_midiType; }
 	
 private:
 	//static const unsigned masterClock = 14318181;

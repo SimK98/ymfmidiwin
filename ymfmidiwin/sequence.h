@@ -40,6 +40,8 @@ public:
 	bool atEnd() const { return m_atEnd; }
 
 	virtual void setAutoSuspend(int suspendTimeMilliseconds) { m_suspendTimeMilliseconds = suspendTimeMilliseconds; }
+
+	virtual std::string GetFriendlyName() { return "FILE"; };
 	
 protected:
 	bool m_atEnd;

@@ -38,6 +38,16 @@ static void trace_fmt_exw(const WCHAR* fmt, ...)
 #define	TRACEOUTW(s)	(void)0
 #endif	/* 1 */
 
+static std::string GetMidiInDeviceName(UINT deviceId)
+{
+	MIDIINCAPSA caps = {};
+	if (midiInGetDevCapsA(deviceId, &caps, sizeof(caps)) != MMSYSERR_NOERROR) {
+		return "(Unknown MIDI IN)";
+	}
+
+	return caps.szPname;
+}
+
 
 // ----------------------------------------------------------------------------
 SequenceMIDIIN::SequenceMIDIIN() : 
@@ -245,3 +255,9 @@ bool SequenceMIDIIN::metaEvent(OPLPlayer& player, MidiSysEx sysex)
 	}
 	return true;
 }
+
+// ----------------------------------------------------------------------------
+std::string SequenceMIDIIN::GetFriendlyName()
+{ 
+	return "[MIDI IN] #" + std::to_string(m_portnum) + " " + GetMidiInDeviceName(m_portnum);
+};
