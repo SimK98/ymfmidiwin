@@ -1213,19 +1213,21 @@ void OPLPlayer::midiSysEx(const uint8_t *data, uint32_t length)
 
 	if (data[0] == 0x7e) // universal non-realtime
 	{
-		if (length == 5 && data[1] == 0x7f && data[2] == 0x09)
+		if (length == 5 && /*data[1] == 0x7f &&*/ data[2] == 0x09)
 		{
-			resetOPL(); // まずリセット
-			if (data[3] == 0x01)
+			if (data[3] == 0x01) {
+				resetOPL(); // リセット
 				m_midiType = GeneralMIDI;
+			}
 			else if (data[3] == 0x03)
+			{
 				m_midiType = GeneralMIDI2;
+			}
 		}
 	}
 	else if (data[0] == 0x41 && length >= 10 // Roland
 	         && data[2] == 0x42 && data[3] == 0x12)
 	{
-		resetOPL(); // まずリセット
 		// if we received one of these, assume GS mode
 		// (some MIDIs seem to e.g. send drum map messages without a GS reset)
 		m_midiType = RolandGS;
@@ -1242,9 +1244,16 @@ void OPLPlayer::midiSysEx(const uint8_t *data, uint32_t length)
 		// Roland GS part parameters
 		if ((address & 0xfff0ff) == 0x401015) // set drum map
 			m_channels[channel].percussion = (data[7] != 0x00);
+
+		if (address == 0x40007f) {
+			// GS Reset
+			resetOPL(); // リセット
+		}
 	}
 	else if (length >= 8 && !memcmp(data, "\x43\x10\x4c\x00\x00\x7e\x00\xf7", 8)) // Yamaha
 	{
+		// XG Reset
+		resetOPL(); // リセット
 		m_midiType = YamahaXG;
 	}
 }
