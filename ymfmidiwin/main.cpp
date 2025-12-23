@@ -40,7 +40,7 @@ extern "C" {
 #include "player.h"
 #include <thread>
 
-#define VERSION "0.6.2.0"
+#define VERSION "0.6.2.1"
 
 static HINSTANCE g_hInst = nullptr;
 static HICON g_hIcon = nullptr;
