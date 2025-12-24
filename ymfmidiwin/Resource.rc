@@ -13,10 +13,10 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// 日本語 (日本) リソース
+// 英語リソース
 
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_JPN)
-LANGUAGE 17, 1
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE 0x09, 0x01
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -43,7 +43,7 @@ END
 
 #endif    // APSTUDIO_INVOKED
 
-#endif    // 日本語 (日本) リソース
+#endif    // 英語リソース
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -81,7 +81,7 @@ VS_VERSION_INFO VERSIONINFO
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "041103a4"
+        BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "\0"
             VALUE "FileVersion", "0, 6, 2, 1\0"
@@ -95,7 +95,7 @@ BEGIN
     END
     BLOCK "VarFileInfo"
     BEGIN
-        VALUE "Translation", 0x411, 932
+        VALUE "Translation", 0x0409, 1200
     END
 END
 
@@ -110,9 +110,10 @@ CAPTION "About"
 FONT 9, "MS Shell Dlg"
 BEGIN
 ICON            IDI_APPICON, -1, 10, 10, 32, 32
-LTEXT           "ymfmidi for Windows", IDC_STATIC, 50, 10, 130, 10
-LTEXT           "", IDC_VERSION, 50, 24, 130, 10
-LTEXT           "This softwerare includes components licensed under the BSD License. See LICENSE.txt for details.", IDC_VERSION, 12, 38, 176, 40
+LTEXT           "Software FM MIDI Synthesizer", IDC_STATIC, 50, 6, 130, 10
+LTEXT           "ymfmidi for Windows", IDC_TITLE_LABEL, 50, 16, 130, 10
+LTEXT           "", IDC_VERSION, 50, 26, 130, 10
+LTEXT           "This softwerare includes components licensed under the BSD License. See LICENSE.txt for details.", IDC_STATIC, 12, 38, 178, 40
 DEFPUSHBUTTON   "OK", IDOK, 70, 60, 60, 14
 END
 

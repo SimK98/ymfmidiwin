@@ -16,7 +16,8 @@
 #define IDI_APPICON 1
 #define IDI_SLEEPICON 2
 
-#define IDC_VERSION	1001
+#define IDC_VERSION		1001
+#define IDC_TITLE_LABEL	1002
 
 #define IDD_ABOUT	2001
 

@@ -50,6 +50,7 @@ static HICON g_hIcon = nullptr;
 static HICON g_hIconSleep = nullptr;
 static HWND g_hWnd = nullptr;
 static HWND g_dialoghWnd = nullptr;
+static HFONT g_hBoldFont = nullptr;
 
 UINT g_WM_TASKBARCREATED = UINT_MAX;
 
@@ -369,6 +370,21 @@ INT_PTR CALLBACK AboutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM)
 	{
 		g_dialoghWnd = hDlg;
 
+		// ダイアログのフォントを取得
+		HFONT hDlgFont = (HFONT)SendMessage(hDlg, WM_GETFONT, 0, 0);
+		if (hDlgFont) {
+			LOGFONT lf = {};
+			if (!g_hBoldFont && GetObject(hDlgFont, sizeof(LOGFONT), &lf)) {
+				lf.lfWeight = FW_BOLD; // 太字に変更
+				g_hBoldFont = CreateFontIndirect(&lf);
+				HWND hLabel = GetDlgItem(hDlg, IDC_TITLE_LABEL);
+				if (hLabel && g_hBoldFont)
+				{
+					SendMessage(hLabel, WM_SETFONT, (WPARAM)g_hBoldFont, TRUE);
+				}
+			}
+		}
+
 		SetDlgItemText(hDlg, IDC_VERSION, GetFileVersionString().c_str());
 
 		RECT rcDlg;
@@ -393,6 +409,14 @@ INT_PTR CALLBACK AboutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM)
 			g_dialoghWnd = nullptr;
 			EndDialog(hDlg, IDOK);
 			return TRUE;
+		}
+		break;
+
+	case WM_DESTROY:
+		if (g_hBoldFont)
+		{
+			DeleteObject(g_hBoldFont);
+			g_hBoldFont = nullptr;
 		}
 		break;
 	}
