@@ -73,10 +73,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(ProjectDir)..\ymfmidiwin\ymfm;$(ProjectDir)..\ymfmidiwin\win-c;$(ProjectDir)..\ymfmidiwin\libsamplerate;$(IncludePath)</IncludePath>
+    <TargetName>$(ProjectName)32</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(ProjectDir)..\ymfmidiwin\ymfm;$(ProjectDir)..\ymfmidiwin\win-c;$(ProjectDir)..\ymfmidiwin\libsamplerate;$(IncludePath)</IncludePath>
+    <TargetName>$(ProjectName)32</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>

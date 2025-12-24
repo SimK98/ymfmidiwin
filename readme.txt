@@ -34,17 +34,23 @@ loopMIDIを使用すると、同じ名前のMIDI INとMIDI OUTが出現します
 
 
 ●使い方
+コンソール版のymfmidiwin.exe（OSが32bitの場合ymfmidiwin32.exe）と
+常駐版のymfmidiwin-synth.exe（OSが32bitの場合ymfmidiwin-synth32.exe）の
+2種類に分かれています。オリジナルのymfmidiに近いのはコンソール版です。
+
 ①ただのMIDIプレーヤーとして使う場合
-ymfmidiwin.exe（OSが32bitの場合ymfmidiwin32.exe）にMIDIファイルを入れると再生されます。音色やOPLの種類・数などはコマンドライン引数で指示できます。
+ymfmidiwin.exe（OSが32bitの場合ymfmidiwin32.exe）にMIDIファイルを入れると
+再生されます。音色やOPLの種類・数などはコマンドライン引数で指示できます。
 
 ②MIDI再生デバイスとして使う場合
-あらかじめloopMIDI等を入れておきます。そのあとで
-ymfmidiwin.exe -t //MIDIIN0
-（OSが32bitの場合ymfmidiwin32.exe）
-と実行するとタスクトレイに常駐します。右クリックメニューで終了できます。
-//MIDIIN1等と書くと別のMIDI INデバイスを指定できます。
+あらかじめloopMIDI等を入れておき、仮想MIDI INを用意しておきます。そのあとで
+ymfmidiwin-synth.exe（OSが32bitの場合ymfmidiwin-synth32.exe）を実行すると、
+最初のMINI INでタスクトレイに常駐します。右クリックメニューで終了できます。
 
--tの常駐状態ではタスクトレイアイコンの右クリックメニューで操作できます。
+ymfmidiwin-synth.exe -t //MIDIIN1
+のように//MIDIIN＜番号＞と書くと別のMIDI INデバイスを指定できます。
+
+常駐状態ではタスクトレイアイコンの右クリックメニューで操作できます。
 ・[MIDI IN] - 使用しているMIDI INを表します
 ・[PATCH] - 使用している音色定義ファイルを表します
 ・[MODE] - 現在の音源のモードを表します
@@ -54,8 +60,11 @@ ymfmidiwin.exe -t //MIDIIN0
 ・Restart - アプリケーションを再起動する（音が鳴らなくなったとき等に使用）
 ・Exit - 終了する
 
+なお、コンソール版も//MIDIIN＜番号＞と書くとMIDI INデバイスモードになります。
+この場合、コンソールで再生状況を確認できます。
 
-●コマンドライン引数の説明
+
+●コンソール版コマンドライン引数の説明
 ymfmidiwin [オプション] MIDIファイル名 [音色データファイル名]
 
 対応MIDIファイルフォーマット:  HMI, HMP, MID, MUS, RMI, XMI
@@ -79,7 +88,6 @@ MIDIファイル名として//MIDIINと書くとMIDI INデバイスとして常�
   -r / --rate <num>       WAV出力サンプリングレート(デフォルト44100)
   -f / --filter <num>     Hz単位のハイパスフィルタカットオフ (default 5.0)
 
-  -t / --tray             コンソール表示せずにタスクトレイに常駐する
   -p / --ptime            スリープ状態へ移行する時間(ミリ秒単位; default 15000)
 
   --resampler <nearest|linear|sinc_fast|sinc_medium|sinc_best>
@@ -111,12 +119,14 @@ ymfmidiwin -o WAVファイル名 MIDIファイル名
 MIDI INデバイスモード（コンソール）
 ymfmidiwin //MIDIIN
 
-MIDI INデバイスモード（タスクトレイ常駐）
-ymfmidiwin -t //MIDIIN
-
 指定したMIDIファイルを_ymfm.wavを付けてへ出力する
 ymfmidiwin -o . MIDIファイル名
 → 例えば、test.midならtest_ymfm.wavへ出力
+
+
+●常駐版コマンドライン引数の説明
+コンソール版と同じオプションが使用できます。
+ただし、コンソール表示がなくなるため再生状況などの確認はできません。
 
 
 ●Windows FM MIDIパッチファイル FMSYNTH.BINについて
@@ -151,8 +161,11 @@ FM音源チップをエミュレーションしている関係上、再生時の
 
 
 ●バージョン履歴
+2025/12/25 ver.0.6.3.0
+・コンソール版と常駐版を分離してセキュリティソフト誤検知をしにくくした
+
 2025/12/24 ver.0.6.2.2
-・MIDI Panic周辺の実装を整理したGS Resetが誤爆してしまう不具合を修正
+・MIDI Panic周辺の実装を整理した
 ・常駐時の右クリックメニューに使用している音色パッチ等を表示するようにした
 
 2025/12/23 ver.0.6.2.1
