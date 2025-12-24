@@ -45,6 +45,10 @@ extern "C" {
 #include "player.h"
 #include <thread>
 
+#ifdef _CONSOLE
+#define YMFMIDI_CONSOLE
+#endif
+
 static HINSTANCE g_hInst = nullptr;
 static HICON g_hIcon = nullptr;
 static HICON g_hIconSleep = nullptr;
@@ -76,41 +80,55 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 static void mainLoopWAV(OPLPlayer* player, const char* path, bool interactive);
 
 // ----------------------------------------------------------------------------
+std::string getUsageText()
+{
+	return std::string(
+		"usage: "
+#ifdef YMFMIDI_CONSOLE
+		"ymfmidiwin"
+#else
+		"ymfmidiwin-synth"
+#endif
+		" [options] song_path [patch_path]\n"
+		"\n"
+		"supported song formats:  HMI, HMP, MID, MUS, RMI, XMI\n"
+		"supported patch formats: AD, OPL, OP2, TMB, WOPL, FMSYNTH.BIN\n"
+		"\n"
+		"supported options:\n"
+		"  -h / --help             show this information and exit\n"
+#ifdef YMFMIDI_CONSOLE
+		"  -q / --quiet            quiet (run non-interactively)\n"
+#endif
+		"  -1 / --play-once        play only once and then exit\n"
+		"  -s / --song <num>       select an individual song, if multiple in file\n"
+		"                            (default 1)\n"
+		"  -o / --out <path>       output to WAV file (implies -q and -1)\n"
+		"\n"
+		"  -c / --chip <num>       set type of chip (1 = OPL, 2 = OPL2, 3 = OPL3; default 3)\n"
+		"  -n / --num <num>        set number of chips (default 1)\n"
+		"  -m / --mono             ignore MIDI panning information (OPL3 only)\n"
+		"  -b / --buf <num>        set buffer size (default 4096)\n"
+		"  -g / --gain <num>       set gain amount (default 1.0)\n"
+		"  -r / --rate <num>       set sample rate (default 44100)\n"
+		"  -f / --filter <num>     set highpass cutoff in Hz (default 5.0)\n"
+		"\n"
+		"  -p / --ptime            time to enter sleep mode (msec; default 15000)\n"
+		"\n"
+		"  --resampler <nearest|linear|sinc_fast|sinc_medium|sinc_best>\n"
+		"                          resampler type (default sinc_fast)\n"
+		"  --tail-time <num>       extra tail time to append to the WAV output\n"
+		"                          (msec; default auto)"
+	);
+}
 void usage()
 {
-	fprintf(stderr, 
-	"usage: ymfmidiwin [options] song_path [patch_path]\n"
-	"\n"
-	"supported song formats:  HMI, HMP, MID, MUS, RMI, XMI\n"
-	"supported patch formats: AD, OPL, OP2, TMB, WOPL, FMSYNTH.BIN\n"
-	"\n"
-	"supported options:\n"
-	"  -h / --help             show this information and exit\n"
-	"  -q / --quiet            quiet (run non-interactively)\n"
-	"  -1 / --play-once        play only once and then exit\n"
-	"  -s / --song <num>       select an individual song, if multiple in file\n"
-	"                            (default 1)\n"
-	"  -o / --out <path>       output to WAV file (implies -q and -1)\n"
-	"\n"
-	"  -c / --chip <num>       set type of chip (1 = OPL, 2 = OPL2, 3 = OPL3; default 3)\n"
-	"  -n / --num <num>        set number of chips (default 1)\n"
-	"  -m / --mono             ignore MIDI panning information (OPL3 only)\n"
-	"  -b / --buf <num>        set buffer size (default 4096)\n"
-	"  -g / --gain <num>       set gain amount (default 1.0)\n"
-	"  -r / --rate <num>       set sample rate (default 44100)\n"
-	"  -f / --filter <num>     set highpass cutoff in Hz (default 5.0)\n"
-	"\n"
-	"  -t / --tray             resides in the task tray\n"
-	"  -p / --ptime            time to enter sleep mode (msec; default 15000)\n"
-	"\n"
-	"  --resampler <nearest|linear|sinc_fast|sinc_medium|sinc_best>\n"
-	"                          resampler type (default sinc_fast)\n"
-	"  --tail-time <num>       extra tail time to append to the WAV output\n"
-	"                          (msec; default auto)\n"
-	"\n"
-	);
-
+#ifdef YMFMIDI_CONSOLE
+	fprintf(stderr, getUsageText().c_str());
+	fprintf(stderr, "\n\n");
 	exit(1);
+#else
+	MessageBoxA(NULL, getUsageText().c_str(), "ymfmidiwin-synth", MB_OK | MB_ICONINFORMATION);
+#endif
 }
 
 static const option options[] = 
@@ -180,6 +198,111 @@ BOOL WINAPI ConsoleHandler(DWORD ctrlType)
 	}
 }
 
+std::wstring GetFileVersionString() {
+	wchar_t buffer[MAX_PATH];
+	DWORD length = GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+	if (length == 0) return std::wstring(L"");
+
+	DWORD dummy;
+	DWORD size = GetFileVersionInfoSizeW(buffer, &dummy);
+	if (size == 0) {
+		return L"";
+	}
+
+	std::vector<BYTE> versionData(size);
+	if (!GetFileVersionInfoW(buffer, 0, size, versionData.data())) {
+		return L"";
+	}
+
+	VS_FIXEDFILEINFO* fileInfo = nullptr;
+	UINT len = 0;
+	if (!VerQueryValueW(versionData.data(), L"\\", reinterpret_cast<LPVOID*>(&fileInfo), &len)) {
+		return L"";
+	}
+
+	if (fileInfo == nullptr) {
+		return L"";
+	}
+
+	std::wstringstream versionStream;
+	versionStream << HIWORD(fileInfo->dwFileVersionMS) << L"."
+		<< LOWORD(fileInfo->dwFileVersionMS) << L"."
+		<< HIWORD(fileInfo->dwFileVersionLS) << L"."
+		<< LOWORD(fileInfo->dwFileVersionLS);
+
+	return versionStream.str();
+}
+
+
+#ifdef YMFMIDI_CONSOLE
+int StartTrayApplication()
+{
+	// 実行ファイルパス取得
+	WCHAR szFilePath[MAX_PATH] = { 0 };
+	if (GetModuleFileNameW(NULL, szFilePath, MAX_PATH) == 0)
+		return -1;
+
+	WCHAR* pathSepa = wcsrchr(szFilePath, '\\');
+	if (pathSepa == nullptr) {
+		return -1;
+	}
+	*(pathSepa + 1) = '\0';
+	wcscat_s(szFilePath, L"ymfmidiwin-synth.exe");
+
+	// コマンドライン引数取得（exe名除く）
+	// GetCommandLine()はexe名込みなので解析が必要
+	LPWSTR cmdLine = GetCommandLineW();
+
+	// コマンドラインからexe名を除去（argv[0]相当）
+	int argc;
+	LPWSTR* argv = CommandLineToArgvW(cmdLine, &argc);
+	if (!argv)
+		return -1;
+
+	// argv[0]は実行ファイルパスなので、それを除いたコマンドラインを作成
+	// 例: argv[1] argv[2] ... を連結
+	WCHAR szArgs[1024] = { 0 };
+	for (int i = 1; i < argc; i++)
+	{
+		wcscat_s(szArgs, 1024, L"\"");
+		wcscat_s(szArgs, 1024, argv[i]);
+		wcscat_s(szArgs, 1024, L"\" ");
+	}
+	LocalFree(argv);
+
+	// CreateProcessの引数用にフルコマンドラインを作成（実行ファイルパス + 引数）
+	WCHAR szCmdLine[2048] = { 0 };
+	swprintf_s(szCmdLine, 2048, L"\"%s\" %s", szFilePath, szArgs);
+
+	STARTUPINFOW si = { sizeof(si) };
+	PROCESS_INFORMATION pi = {};
+
+	BOOL ret = CreateProcessW(
+		NULL,
+		szCmdLine,
+		NULL,
+		NULL,
+		FALSE,
+		0,
+		NULL,
+		NULL,
+		&si,
+		&pi);
+
+	if (!ret)
+	{
+		// エラー処理
+		return -1;
+	}
+
+	// 新プロセスのハンドルは不要なので閉じる
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+
+	return 0;
+}
+
+#else
 int g_lastIconDPI = 96;
 HICON g_oldhIcon = nullptr;
 HICON g_oldhIconSleep = nullptr;
@@ -325,42 +448,6 @@ int RestartApplication()
 
 	return 0;
 }
-
-std::wstring GetFileVersionString() {
-	wchar_t buffer[MAX_PATH];
-	DWORD length = GetModuleFileNameW(nullptr, buffer, MAX_PATH);
-	if (length == 0) return std::wstring(L"");
-
-	DWORD dummy;
-	DWORD size = GetFileVersionInfoSizeW(buffer, &dummy);
-	if (size == 0) {
-		return L"";
-	}
-
-	std::vector<BYTE> versionData(size);
-	if (!GetFileVersionInfoW(buffer, 0, size, versionData.data())) {
-		return L"";
-	}
-
-	VS_FIXEDFILEINFO* fileInfo = nullptr;
-	UINT len = 0;
-	if (!VerQueryValueW(versionData.data(), L"\\", reinterpret_cast<LPVOID*>(&fileInfo), &len)) {
-		return L"";
-	}
-
-	if (fileInfo == nullptr) {
-		return L"";
-	}
-
-	std::wstringstream versionStream;
-	versionStream << HIWORD(fileInfo->dwFileVersionMS) << L"."
-		<< LOWORD(fileInfo->dwFileVersionMS) << L"."
-		<< HIWORD(fileInfo->dwFileVersionLS) << L"."
-		<< LOWORD(fileInfo->dwFileVersionLS);
-
-	return versionStream.str();
-}
-
 
 INT_PTR CALLBACK AboutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM)
 {
@@ -531,6 +618,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_DESTROY:
+		g_running = false;
 		PostQuitMessage(0);
 		return 0;
 
@@ -582,6 +670,8 @@ void EnableHighDpiScaling()
 	}
 }
 
+#endif
+
 // ----------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
@@ -604,9 +694,14 @@ int main(int argc, char **argv)
 	bool stereo = true;
 	int suspendTimeMilliseconds = 15000; // 15秒でサスペンド
 
+#ifdef YMFMIDI_CONSOLE
+	wprintf((std::wstring(L"ymfmidi for Windows v") + GetFileVersionString() + std::wstring(L" - " __DATE__ "\n")).c_str());
+#else
 	EnableHighDpiScaling();
 
-	wprintf((std::wstring(L"ymfmidi for Windows v") + GetFileVersionString() + std::wstring(L" - " __DATE__ "\n")).c_str());
+	traymode = true;
+	interactive = false;
+#endif
 
 	char opt;
 	int optionindex = 0;
@@ -617,7 +712,7 @@ int main(int argc, char **argv)
 		case ':':
 		case 'h':
 			usage();
-			break;
+			return 1;
 		
 		case 'q':
 			interactive = false;
@@ -699,7 +794,14 @@ int main(int argc, char **argv)
 
 		case 't':
 			// タスクトレイ常駐モード
+#ifdef YMFMIDI_CONSOLE
+			fprintf(stderr, "--tray option detected.\n");
+			fprintf(stderr, "Please use ymfmidi-synth.exe\n");
+			printf("Press any key to continue in console mode...\n");
+			getchar();
+#else
 			traymode = true;
+#endif
 			break;
 
 		case 'p':
@@ -740,13 +842,25 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
-	
-	if (optind >= argc)
-		usage();
 
+#ifdef YMFMIDI_CONSOLE
+	if (optind >= argc) {
+		usage();
+		return 1;
+	}
 	songPath = argv[optind];
+#else
+	if (optind >= argc) {
+		songPath = "//MIDIIN";
+	}
+	else {
+		songPath = argv[optind];
+	}
+#endif
+
 	if (optind + 1 < argc)
 		patchPath = argv[optind + 1];
+
 	{
 		const char* fileext = strrchr(songPath, '.');
 		if (fileext && (_stricmp(fileext, ".wopl") == 0 || _stricmp(fileext, ".opl") == 0 || _stricmp(fileext, ".op2") == 0 || _stricmp(fileext, ".tmb") == 0 || _stricmp(fileext, ".ad") == 0 || _stricmp(fileext, ".bin") == 0 || _stricmp(fileext, ".dll") == 0)) {
@@ -806,7 +920,7 @@ int main(int argc, char **argv)
 	if (songNum > 0)
 		player->setSongNum(songNum - 1);
 	player->setAutoSuspend(suspendTimeMilliseconds);
-	
+
 	if (interactive)
 	{
 		consoleOpen();
@@ -845,7 +959,9 @@ int main(int argc, char **argv)
 	}
 	else
 	{
+#ifdef YMFMIDI_CONSOLE
 		SetConsoleCtrlHandler(ConsoleHandler, TRUE);
+#endif
 #ifdef USE_SDL
 		mainLoopSDL(player, bufferSize, interactive);
 #else
@@ -857,6 +973,14 @@ int main(int argc, char **argv)
 
 	return 0;
 }
+
+#ifndef YMFMIDI_CONSOLE
+// ----------------------------------------------------------------------------
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+{
+	return main(__argc, __argv);
+}
+#endif
 
 // ----------------------------------------------------------------------------
 #ifdef USE_SDL
@@ -1475,6 +1599,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 
 	player->setSampleRate(INTERNAL_SR); // OPL original rate
 
+#ifndef YMFMIDI_CONSOLE
 	if (traymode) {
 		g_hInst = GetModuleHandle(nullptr);
 
@@ -1484,13 +1609,16 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 
 		ShowWindow(hwnd, SW_HIDE);
 		if (RegisterTrayIcon(hwnd)) {
+#ifdef YMFMIDI_CONSOLE
 			// コンソールを消す
 			FreeConsole();
+#endif
 		}
 		else {
 			traymode = false;
 		}
 	}
+#endif
 	if (interactive && !traymode)
 	{
 		consolePos(2);
@@ -1500,6 +1628,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 	unsigned displayType = 0;
 	while (g_running)
 	{
+#ifndef YMFMIDI_CONSOLE
 		if (traymode) {
 			MSG msg;
 			while (GetMessage(&msg, nullptr, 0, 0))
@@ -1508,7 +1637,9 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 				DispatchMessage(&msg);
 			}
 		}
-		else {
+		else
+#endif
+		{
 			if (interactive)
 			{
 				if (player->numSongs() > 1)
@@ -1561,6 +1692,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 		}
 	}
 
+#ifndef YMFMIDI_CONSOLE
 	if (traymode) {
 		g_hWnd = nullptr;
 
@@ -1580,6 +1712,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 		}
 		ReleaseOldTrayIcon();
 	}
+#endif
 	g_running = false;
 	audio.join();
 }
