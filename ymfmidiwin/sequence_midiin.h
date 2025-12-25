@@ -161,6 +161,17 @@ private:
 class MidiInDevice
 {
 public:
+    MidiInDevice() {
+        m_hEventMidiInCallback = CreateEvent(NULL, FALSE, FALSE, NULL);
+    }
+    ~MidiInDevice() {
+        close();
+        if (m_hEventMidiInCallback) {
+            CloseHandle(m_hEventMidiInCallback);
+            m_hEventMidiInCallback = nullptr;
+        }
+    }
+
     bool open(int portnum)
     {
         if (m_hMidiIn) {
@@ -251,6 +262,11 @@ public:
         return m_sysexFifo.pop(out);
     }
 
+    HANDLE getWakeupEvent()
+    {
+        return m_hEventMidiInCallback;
+    }
+
 private:
     static void CALLBACK MidiInCallback(
         HMIDIIN,
@@ -262,6 +278,8 @@ private:
         MidiInDevice* self = reinterpret_cast<MidiInDevice*>(dwInstance);
 
         if (self->m_closing) return;
+
+        SetEvent(self->m_hEventMidiInCallback);
 
         switch (wMsg)
         {
@@ -319,6 +337,8 @@ private:
 
     MIDIHDR m_sysexHdr[SYSEX_BUFFER_COUNT]{};
     BYTE    m_sysexData[SYSEX_BUFFER_COUNT][SYSEX_BUFFER_SIZE]{};
+
+    HANDLE m_hEventMidiInCallback = nullptr;
 };
 
 class SequenceMIDIIN : public Sequence
@@ -338,6 +358,8 @@ public:
 	static bool isValid(const uint8_t* data, size_t size);
 
     std::string GetFriendlyName();
+
+    void* getWakeupEvent();
 
 protected:
 	uint32_t m_portnum;

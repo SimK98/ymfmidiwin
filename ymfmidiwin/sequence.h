@@ -42,6 +42,8 @@ public:
 	virtual void setAutoSuspend(int suspendTimeMilliseconds) { m_suspendTimeMilliseconds = suspendTimeMilliseconds; }
 
 	virtual std::string GetFriendlyName() { return "FILE"; };
+
+	virtual void* getWakeupEvent() { return nullptr; };
 	
 protected:
 	bool m_atEnd;

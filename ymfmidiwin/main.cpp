@@ -58,6 +58,8 @@ static HFONT g_hBoldFont = nullptr;
 
 UINT g_WM_TASKBARCREATED = UINT_MAX;
 
+HANDLE g_hEventWakeUp = nullptr;
+
 static bool g_running = true;
 static bool g_paused = false;
 static bool g_looping = true;
@@ -152,9 +154,12 @@ static const option options[] =
 };
 
 // ----------------------------------------------------------------------------
-void quit(int)
+void quitPlayer(int)
 {
 	g_running = false;
+	if (g_hEventWakeUp) {
+		SetEvent(g_hEventWakeUp);
+	}
 #ifdef USE_SDL
 	SDL_PauseAudio(1);
 #endif
@@ -606,11 +611,11 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			DialogBox(g_hInst, MAKEINTRESOURCE(IDD_ABOUT), hwnd, AboutDlgProc);
 			return 0;
 		case ID_TRAY_EXIT:
-			g_running = false;
+			quitPlayer(0);
 			PostQuitMessage(0);
 			return 0;
 		case ID_TRAY_RESTART:
-			g_running = false;
+			quitPlayer(0);
 			PostQuitMessage(0);
 			RestartApplication();
 			return 0;
@@ -618,7 +623,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_DESTROY:
-		g_running = false;
+		quitPlayer(0);
 		PostQuitMessage(0);
 		return 0;
 
@@ -797,7 +802,7 @@ int main(int argc, char **argv)
 #ifdef YMFMIDI_CONSOLE
 			fprintf(stderr, "--tray option detected.\n");
 			fprintf(stderr, "Please use ymfmidi-synth.exe\n");
-			printf("Press any key to continue in console mode...\n");
+			printf("Press Enter key to continue in console mode...\n");
 			getchar();
 #else
 			traymode = true;
@@ -858,8 +863,9 @@ int main(int argc, char **argv)
 	}
 #endif
 
-	if (optind + 1 < argc)
+	if (optind + 1 < argc) {
 		patchPath = argv[optind + 1];
+	}
 
 	{
 		const char* fileext = strrchr(songPath, '.');
@@ -869,13 +875,20 @@ int main(int argc, char **argv)
 			songPath = tmp;
 		}
 	}
+#ifndef YMFMIDI_CONSOLE
+	if (_stricmp(songPath, "GENMIDI.wopl") == 0) {
+		songPath = "//MIDIIN";
+	}
+#endif
 	
 	auto player = new OPLPlayer(numChips, chipType);
 	
 	if (!player->loadSequence(songPath))
 	{
 		fprintf(stderr, "couldn't load %s\n", songPath);
+		delete player;
 		exit(1);
+		return 1;
 	}
 
 	const char* patchFileNameExt = strrchr(patchPath, '.');
@@ -894,7 +907,9 @@ int main(int argc, char **argv)
 		if (!player->loadPatches(patchPath))
 		{
 			fprintf(stderr, "couldn't load %s\n", patchPath);
+			delete player;
 			exit(1);
+			return 1;
 		}
 	}
 	else if (!player->loadPatches(patchPath))
@@ -905,7 +920,9 @@ int main(int argc, char **argv)
 		if (!player->loadPatches(path.c_str()))
 		{
 			fprintf(stderr, "couldn't load %s\n", patchPath);
+			delete player;
 			exit(1);
+			return 1;
 		}
 		strcpy_s(patchPathTemp, path.c_str());
 		patchPath = patchPathTemp;
@@ -934,7 +951,7 @@ int main(int argc, char **argv)
 			shortPath(songPath), shortPath(patchPath));
 	}
 
-	signal(SIGINT, quit);
+	signal(SIGINT, quitPlayer);
 
 	if (wavPath) 
 	{
@@ -959,6 +976,7 @@ int main(int argc, char **argv)
 	}
 	else
 	{
+		g_hEventWakeUp = CreateEvent(NULL, FALSE, FALSE, NULL);
 #ifdef YMFMIDI_CONSOLE
 		SetConsoleCtrlHandler(ConsoleHandler, TRUE);
 #endif
@@ -967,6 +985,9 @@ int main(int argc, char **argv)
 #else
 		mainLoopWASAPI(player, bufferSize, interactive, traymode);
 #endif
+		if (g_hEventWakeUp) {
+			CloseHandle(g_hEventWakeUp);
+		}
 	}
 
 	delete player;
@@ -1221,7 +1242,7 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 			{
 			case 0x1b:
 			case 'q':
-				g_running = false;
+				quitPlayer(0);
 				continue;
 			}
 		}
@@ -1461,16 +1482,6 @@ void StartWasapiAudio(OPLPlayer *player)
 					continue;
 				}
 
-				UINT32 padding = 0;
-				hr = audioClient->GetCurrentPadding(&padding);
-				if (FAILED(hr)) {
-					Sleep(1000);
-					g_restart = true;
-					goto finalize;
-				}
-
-				UINT32 framesAvailable = bufferFrames - padding;
-
 				int sampleremain = fifosamples - fifo.size();
 				if (sampleremain > 0)
 				{
@@ -1485,6 +1496,18 @@ void StartWasapiAudio(OPLPlayer *player)
 						if (g_sleeping) {
 							g_sleeping = false;
 							PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
+							hr = audioClient->Reset(); // 出力バッファリセット
+							if (FAILED(hr)) {
+								Sleep(1000);
+								g_restart = true;
+								goto finalize;
+							}
+							hr = audioClient->Start(); // 出力を再開する
+							if (FAILED(hr)) {
+								Sleep(1000);
+								g_restart = true;
+								goto finalize;
+							}
 						}
 
 						// --- SR 変換 ---
@@ -1506,8 +1529,22 @@ void StartWasapiAudio(OPLPlayer *player)
 						if (!g_sleeping) {
 							g_sleeping = true;
 							PostMessage(g_hWnd, WM_USER_UPDATETRAYICON, 0, 0);
+							hr = audioClient->Stop(); // 出力を停止する
+							if (FAILED(hr)) {
+								Sleep(1000);
+								g_restart = true;
+								goto finalize;
+							}
 						}
-						Sleep(100);
+						if (g_hEventWakeUp && player->getSequencerWakeupEvent()) {
+							// イベントオブジェクトで待機可能
+							HANDLE handles[] = { g_hEventWakeUp, (HANDLE)player->getSequencerWakeupEvent() };
+							WaitForMultipleObjects(sizeof(handles) / sizeof(handles[0]), handles, FALSE, INFINITE);
+						}
+						else {
+							// ポーリングで待機能
+							Sleep(100);
+						}
 						continue;
 					}
 				}
@@ -1517,6 +1554,16 @@ void StartWasapiAudio(OPLPlayer *player)
 				}
 
 				// --- WASAPI 出力 ---
+				UINT32 padding = 0;
+				hr = audioClient->GetCurrentPadding(&padding);
+				if (FAILED(hr)) {
+					Sleep(1000);
+					g_restart = true;
+					goto finalize;
+				}
+
+				UINT32 framesAvailable = bufferFrames - padding;
+
 				UINT32 fifoFrames = (UINT32)(fifo.size() / mixFmt->nChannels);
 				UINT32 framesToWrite = min(framesAvailable, fifoFrames);
 
@@ -1626,6 +1673,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 	}
 
 	unsigned displayType = 0;
+	bool updateOnce = true;
 	while (g_running)
 	{
 #ifndef YMFMIDI_CONSOLE
@@ -1642,49 +1690,58 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 		{
 			if (interactive)
 			{
-				if (player->numSongs() > 1)
-				{
-					consolePos(1);
-					printf("part %3u/%-3u (use left/right to change)\n",
-						player->songNum() + 1, player->numSongs());
-				}
+				if (updateOnce || !g_sleeping) {
+					if (player->numSongs() > 1)
+					{
+						consolePos(1);
+						printf("part %3u/%-3u (use left/right to change)\n",
+							player->songNum() + 1, player->numSongs());
+					}
 
-				consolePos(5);
-				if (!displayType)
-					player->displayChannels();
-				else
-					player->displayVoices();
+					consolePos(5);
+					if (!displayType)
+						player->displayChannels();
+					else
+						player->displayVoices();
+
+					updateOnce = false;
+				}
 
 				switch (consoleGetKey())
 				{
 				case 0x1b:
 				case 'q':
-					quit(0);
+					quitPlayer(0);
 					continue;
 
 				case 'p':
 					g_paused ^= true;
+					updateOnce = true;
 					break;
 
 				case 'r':
 					g_paused = false;
 					player->reset();
+					updateOnce = true;
 					break;
 
 				case 0x09:
 					displayType ^= 1;
 					consolePos(5);
 					player->displayClear();
+					updateOnce = true;
 					break;
 
 				case -'D':
 					if (player->songNum() > 0)
 						player->setSongNum(player->songNum() - 1);
+					updateOnce = true;
 					break;
 
 				case -'C':
 					if (player->songNum() < player->numSongs() - 1)
 						player->setSongNum(player->songNum() + 1);
+					updateOnce = true;
 					break;
 				}
 			}
@@ -1713,7 +1770,7 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 		ReleaseOldTrayIcon();
 	}
 #endif
-	g_running = false;
+	quitPlayer(0);
 	audio.join();
 }
 #endif
