@@ -140,10 +140,6 @@ uint32_t SequenceMIDIIN::update(OPLPlayer& player)
 			m_lastSleepMode = true;
 			return UINT_MAX;
 		}
-		else if (curTimeReal - m_currentTimeReal > 10000) {
-			// 10•b—ˆ‚È‚¯‚ê‚Î100msec‚­‚ç‚¢‚¸‚ê‚Ä‚à‚¢‚¢‚Å‚µ‚å‚¤
-			return player.sampleRate() / 10;
-		}
 		else if (curTimeReal - m_currentTimeReal > 1000) {
 			// 1•b—ˆ‚È‚¯‚ê‚Î10msec‚­‚ç‚¢‚¸‚ê‚Ä‚à‚¢‚¢‚Å‚µ‚å‚¤
 			return player.sampleRate() / 100;
@@ -261,3 +257,9 @@ std::string SequenceMIDIIN::GetFriendlyName()
 { 
 	return "[MIDI IN] #" + std::to_string(m_portnum) + " " + GetMidiInDeviceName(m_portnum);
 };
+
+// ----------------------------------------------------------------------------
+void* SequenceMIDIIN::getWakeupEvent()
+{
+	return m_midiIn.getWakeupEvent();
+}

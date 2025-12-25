@@ -1290,3 +1290,9 @@ std::string OPLPlayer::getSequencerFriendlyName()
 	return m_sequence->GetFriendlyName();
 }
 
+// ----------------------------------------------------------------------------
+void* OPLPlayer::getSequencerWakeupEvent()
+{
+	return m_sequence->getWakeupEvent();
+}
+

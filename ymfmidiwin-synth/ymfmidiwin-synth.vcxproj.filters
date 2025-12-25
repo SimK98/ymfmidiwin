@@ -2,7 +2,7 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="ソース ファイル">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      　<UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
     <Filter Include="ヘッダー ファイル">
@@ -33,198 +33,198 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="console.h">
+    <ClInclude Include="..\ymfmidiwin\console.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="patches.h">
+    <ClInclude Include="..\ymfmidiwin\patches.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="player.h">
+    <ClInclude Include="..\ymfmidiwin\player.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="sequence.h">
+    <ClInclude Include="..\ymfmidiwin\sequence.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="sequence_hmi.h">
+    <ClInclude Include="..\ymfmidiwin\sequence_hmi.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="sequence_hmp.h">
+    <ClInclude Include="..\ymfmidiwin\sequence_hmp.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="sequence_mid.h">
+    <ClInclude Include="..\ymfmidiwin\sequence_mid.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="sequence_mus.h">
+    <ClInclude Include="..\ymfmidiwin\sequence_mus.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="sequence_xmi.h">
+    <ClInclude Include="..\ymfmidiwin\sequence_xmi.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="win-c\getopt.h">
+    <ClInclude Include="..\ymfmidiwin\win-c\getopt.h">
       <Filter>ヘッダー ファイル\win-c</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_adpcm.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_adpcm.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_fm.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_fm.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_misc.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_misc.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_opl.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opl.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_opm.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opm.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_opn.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opn.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_opq.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opq.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_opx.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opx.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_opz.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opz.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_pcm.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_pcm.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_ssg.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_ssg.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm_fm.ipp">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_fm.ipp">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="ymfm\ymfm.h">
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm.h">
       <Filter>ヘッダー ファイル\ymfm</Filter>
     </ClInclude>
-    <ClInclude Include="libsamplerate\common.h">
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\common.h">
       <Filter>ヘッダー ファイル\libsamplerate</Filter>
     </ClInclude>
-    <ClInclude Include="libsamplerate\fastest_coeffs.h">
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\fastest_coeffs.h">
       <Filter>ヘッダー ファイル\libsamplerate</Filter>
     </ClInclude>
-    <ClInclude Include="libsamplerate\high_qual_coeffs.h">
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\high_qual_coeffs.h">
       <Filter>ヘッダー ファイル\libsamplerate</Filter>
     </ClInclude>
-    <ClInclude Include="libsamplerate\mid_qual_coeffs.h">
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\mid_qual_coeffs.h">
       <Filter>ヘッダー ファイル\libsamplerate</Filter>
     </ClInclude>
-    <ClInclude Include="libsamplerate\samplerate.h">
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\samplerate.h">
       <Filter>ヘッダー ファイル\libsamplerate</Filter>
     </ClInclude>
-    <ClInclude Include="sequence_midiin.h">
+    <ClInclude Include="..\ymfmidiwin\sequence_midiin.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
+    <ClInclude Include="..\ymfmidiwin\resource.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="pe_resource.h">
+    <ClInclude Include="..\ymfmidiwin\pe_resource.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="sequence_hmi.cpp">
+    <ClCompile Include="..\ymfmidiwin\sequence_hmi.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="sequence_hmp.cpp">
+    <ClCompile Include="..\ymfmidiwin\sequence_hmp.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="sequence_mid.cpp">
+    <ClCompile Include="..\ymfmidiwin\sequence_mid.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="sequence_mus.cpp">
+    <ClCompile Include="..\ymfmidiwin\sequence_mus.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="sequence_xmi.cpp">
+    <ClCompile Include="..\ymfmidiwin\sequence_xmi.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="console.cpp">
+    <ClCompile Include="..\ymfmidiwin\console.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="..\ymfmidiwin\main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="patches.cpp">
+    <ClCompile Include="..\ymfmidiwin\patches.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="patchnames.cpp">
+    <ClCompile Include="..\ymfmidiwin\patchnames.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="player.cpp">
+    <ClCompile Include="..\ymfmidiwin\player.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="sequence.cpp">
+    <ClCompile Include="..\ymfmidiwin\sequence.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="win-c\getopt.c">
+    <ClCompile Include="..\ymfmidiwin\win-c\getopt.c">
       <Filter>ソース ファイル\win-c</Filter>
     </ClCompile>
-    <ClCompile Include="ymfm\ymfm_ssg.cpp">
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_ssg.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
     </ClCompile>
-    <ClCompile Include="ymfm\ymfm_adpcm.cpp">
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_adpcm.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
     </ClCompile>
-    <ClCompile Include="ymfm\ymfm_misc.cpp">
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_misc.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
     </ClCompile>
-    <ClCompile Include="ymfm\ymfm_opl.cpp">
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opl.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
     </ClCompile>
-    <ClCompile Include="ymfm\ymfm_opm.cpp">
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opm.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
     </ClCompile>
-    <ClCompile Include="ymfm\ymfm_opn.cpp">
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opn.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
     </ClCompile>
-    <ClCompile Include="ymfm\ymfm_opq.cpp">
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opq.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
     </ClCompile>
-    <ClCompile Include="ymfm\ymfm_opz.cpp">
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opz.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
     </ClCompile>
-    <ClCompile Include="ymfm\ymfm_pcm.cpp">
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_pcm.cpp">
       <Filter>ソース ファイル\ymfm</Filter>
     </ClCompile>
-    <ClCompile Include="libsamplerate\src_zoh.cpp">
+    <ClCompile Include="..\ymfmidiwin\libsamplerate\src_zoh.cpp">
       <Filter>ソース ファイル\libsamplerate</Filter>
     </ClCompile>
-    <ClCompile Include="libsamplerate\samplerate.cpp">
+    <ClCompile Include="..\ymfmidiwin\libsamplerate\samplerate.cpp">
       <Filter>ソース ファイル\libsamplerate</Filter>
     </ClCompile>
-    <ClCompile Include="libsamplerate\src_linear.cpp">
+    <ClCompile Include="..\ymfmidiwin\libsamplerate\src_linear.cpp">
       <Filter>ソース ファイル\libsamplerate</Filter>
     </ClCompile>
-    <ClCompile Include="libsamplerate\src_sinc.cpp">
+    <ClCompile Include="..\ymfmidiwin\libsamplerate\src_sinc.cpp">
       <Filter>ソース ファイル\libsamplerate</Filter>
     </ClCompile>
-    <ClCompile Include="sequence_midiin.cpp">
+    <ClCompile Include="..\ymfmidiwin\sequence_midiin.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="pe_resource.cpp">
+    <ClCompile Include="..\ymfmidiwin\pe_resource.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Resource.rc">
+    <ResourceCompile Include="..\ymfmidiwin\Resource.rc">
       <Filter>リソース ファイル</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="ymfmidi.ico">
+    <Image Include="..\ymfmidiwin\ymfmidi.ico">
       <Filter>リソース ファイル</Filter>
     </Image>
-    <Image Include="ymfmidi_sleep.ico">
+    <Image Include="..\ymfmidiwin\ymfmidi_sleep.ico">
       <Filter>リソース ファイル</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="ex.app.manifest">
+    <Manifest Include="..\ymfmidiwin\ex.app.manifest">
       <Filter>リソース ファイル</Filter>
     </Manifest>
   </ItemGroup>

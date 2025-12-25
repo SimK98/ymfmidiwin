@@ -148,6 +148,8 @@ public:
 	std::string getSequencerFriendlyName();
 
 	OPLPlayer::MIDIType getMidiType() const { return m_midiType; }
+
+	void* getSequencerWakeupEvent();
 	
 private:
 	//static const unsigned masterClock = 14318181;

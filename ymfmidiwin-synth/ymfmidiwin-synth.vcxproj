@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{eb2d5413-8521-4e43-a3d2-29144c2297d1}</ProjectGuid>
-    <RootNamespace>ymfmidiwin</RootNamespace>
+    <ProjectGuid>{ed2c5038-07b1-48f0-80c4-1f6925ffe3c7}</ProjectGuid>
+    <RootNamespace>ymfmidiwinsynth</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -72,41 +72,34 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(ProjectDir)libsamplerate;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)..\ymfmidiwin\ymfm;$(ProjectDir)..\ymfmidiwin\win-c;$(ProjectDir)..\ymfmidiwin\libsamplerate;$(IncludePath)</IncludePath>
     <TargetName>$(ProjectName)32</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(ProjectDir)libsamplerate;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)..\ymfmidiwin\ymfm;$(ProjectDir)..\ymfmidiwin\win-c;$(ProjectDir)..\ymfmidiwin\libsamplerate;$(IncludePath)</IncludePath>
     <TargetName>$(ProjectName)32</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(ProjectDir)libsamplerate;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)..\ymfmidiwin\ymfm;$(ProjectDir)..\ymfmidiwin\win-c;$(ProjectDir)..\ymfmidiwin\libsamplerate;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)ymfm;$(ProjectDir)win-c;$(ProjectDir)libsamplerate;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)..\ymfmidiwin\ymfm;$(ProjectDir)..\ymfmidiwin\win-c;$(ProjectDir)..\ymfmidiwin\libsamplerate;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <Manifest />
-    <Manifest>
-      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
-      <AdditionalManifestFiles>ex.app.manifest</AdditionalManifestFiles>
-    </Manifest>
-    <ResourceCompile>
-      <PreprocessorDefinitions>YMFMIDI_CONSOLE;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ResourceCompile>
+    <ResourceCompile />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -114,45 +107,29 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <Manifest />
-    <Manifest>
-      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
-      <AdditionalManifestFiles>ex.app.manifest</AdditionalManifestFiles>
-    </Manifest>
-    <ResourceCompile>
-      <PreprocessorDefinitions>YMFMIDI_CONSOLE;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ResourceCompile>
+    <ResourceCompile />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <Manifest />
-    <Manifest>
-      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
-      <AdditionalManifestFiles>ex.app.manifest</AdditionalManifestFiles>
-    </Manifest>
-    <ResourceCompile>
-      <PreprocessorDefinitions>YMFMIDI_CONSOLE;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ResourceCompile>
+    <ResourceCompile />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -160,97 +137,94 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <Manifest />
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
-      <AdditionalManifestFiles>ex.app.manifest</AdditionalManifestFiles>
+      <AdditionalManifestFiles>..\ymfmidiwin\ex.app.manifest</AdditionalManifestFiles>
     </Manifest>
-    <ResourceCompile>
-      <PreprocessorDefinitions>YMFMIDI_CONSOLE;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ResourceCompile>
+    <ResourceCompile />
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="console.h" />
-    <ClInclude Include="libsamplerate\common.h" />
-    <ClInclude Include="libsamplerate\fastest_coeffs.h" />
-    <ClInclude Include="libsamplerate\high_qual_coeffs.h" />
-    <ClInclude Include="libsamplerate\mid_qual_coeffs.h" />
-    <ClInclude Include="libsamplerate\samplerate.h" />
-    <ClInclude Include="patches.h" />
-    <ClInclude Include="pe_resource.h" />
-    <ClInclude Include="player.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="sequence.h" />
-    <ClInclude Include="sequence_hmi.h" />
-    <ClInclude Include="sequence_hmp.h" />
-    <ClInclude Include="sequence_mid.h" />
-    <ClInclude Include="sequence_midiin.h" />
-    <ClInclude Include="sequence_mus.h" />
-    <ClInclude Include="sequence_xmi.h" />
-    <ClInclude Include="win-c\getopt.h" />
-    <ClInclude Include="ymfm\ymfm.h" />
-    <ClInclude Include="ymfm\ymfm_adpcm.h" />
-    <ClInclude Include="ymfm\ymfm_fm.h" />
-    <ClInclude Include="ymfm\ymfm_fm.ipp" />
-    <ClInclude Include="ymfm\ymfm_misc.h" />
-    <ClInclude Include="ymfm\ymfm_opl.h" />
-    <ClInclude Include="ymfm\ymfm_opm.h" />
-    <ClInclude Include="ymfm\ymfm_opn.h" />
-    <ClInclude Include="ymfm\ymfm_opq.h" />
-    <ClInclude Include="ymfm\ymfm_opx.h" />
-    <ClInclude Include="ymfm\ymfm_opz.h" />
-    <ClInclude Include="ymfm\ymfm_pcm.h" />
-    <ClInclude Include="ymfm\ymfm_ssg.h" />
+    <ClInclude Include="..\ymfmidiwin\console.h" />
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\common.h" />
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\fastest_coeffs.h" />
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\high_qual_coeffs.h" />
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\mid_qual_coeffs.h" />
+    <ClInclude Include="..\ymfmidiwin\libsamplerate\samplerate.h" />
+    <ClInclude Include="..\ymfmidiwin\patches.h" />
+    <ClInclude Include="..\ymfmidiwin\pe_resource.h" />
+    <ClInclude Include="..\ymfmidiwin\player.h" />
+    <ClInclude Include="..\ymfmidiwin\resource.h" />
+    <ClInclude Include="..\ymfmidiwin\sequence.h" />
+    <ClInclude Include="..\ymfmidiwin\sequence_hmi.h" />
+    <ClInclude Include="..\ymfmidiwin\sequence_hmp.h" />
+    <ClInclude Include="..\ymfmidiwin\sequence_mid.h" />
+    <ClInclude Include="..\ymfmidiwin\sequence_midiin.h" />
+    <ClInclude Include="..\ymfmidiwin\sequence_mus.h" />
+    <ClInclude Include="..\ymfmidiwin\sequence_xmi.h" />
+    <ClInclude Include="..\ymfmidiwin\win-c\getopt.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_adpcm.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_fm.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_fm.ipp" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_misc.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opl.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opm.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opn.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opq.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opx.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_opz.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_pcm.h" />
+    <ClInclude Include="..\ymfmidiwin\ymfm\ymfm_ssg.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="console.cpp" />
-    <ClCompile Include="libsamplerate\samplerate.cpp" />
-    <ClCompile Include="libsamplerate\src_linear.cpp" />
-    <ClCompile Include="libsamplerate\src_sinc.cpp" />
-    <ClCompile Include="libsamplerate\src_zoh.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="patches.cpp" />
-    <ClCompile Include="patchnames.cpp" />
-    <ClCompile Include="pe_resource.cpp" />
-    <ClCompile Include="player.cpp" />
-    <ClCompile Include="sequence.cpp" />
-    <ClCompile Include="sequence_hmi.cpp" />
-    <ClCompile Include="sequence_hmp.cpp" />
-    <ClCompile Include="sequence_mid.cpp" />
-    <ClCompile Include="sequence_midiin.cpp" />
-    <ClCompile Include="sequence_mus.cpp" />
-    <ClCompile Include="sequence_xmi.cpp" />
-    <ClCompile Include="win-c\getopt.c" />
-    <ClCompile Include="ymfm\ymfm_adpcm.cpp" />
-    <ClCompile Include="ymfm\ymfm_misc.cpp" />
-    <ClCompile Include="ymfm\ymfm_opl.cpp" />
-    <ClCompile Include="ymfm\ymfm_opm.cpp" />
-    <ClCompile Include="ymfm\ymfm_opn.cpp" />
-    <ClCompile Include="ymfm\ymfm_opq.cpp" />
-    <ClCompile Include="ymfm\ymfm_opz.cpp" />
-    <ClCompile Include="ymfm\ymfm_pcm.cpp" />
-    <ClCompile Include="ymfm\ymfm_ssg.cpp" />
+    <ClCompile Include="..\ymfmidiwin\console.cpp" />
+    <ClCompile Include="..\ymfmidiwin\libsamplerate\samplerate.cpp" />
+    <ClCompile Include="..\ymfmidiwin\libsamplerate\src_linear.cpp" />
+    <ClCompile Include="..\ymfmidiwin\libsamplerate\src_sinc.cpp" />
+    <ClCompile Include="..\ymfmidiwin\libsamplerate\src_zoh.cpp" />
+    <ClCompile Include="..\ymfmidiwin\main.cpp" />
+    <ClCompile Include="..\ymfmidiwin\patches.cpp" />
+    <ClCompile Include="..\ymfmidiwin\patchnames.cpp" />
+    <ClCompile Include="..\ymfmidiwin\pe_resource.cpp" />
+    <ClCompile Include="..\ymfmidiwin\player.cpp" />
+    <ClCompile Include="..\ymfmidiwin\sequence.cpp" />
+    <ClCompile Include="..\ymfmidiwin\sequence_hmi.cpp" />
+    <ClCompile Include="..\ymfmidiwin\sequence_hmp.cpp" />
+    <ClCompile Include="..\ymfmidiwin\sequence_mid.cpp" />
+    <ClCompile Include="..\ymfmidiwin\sequence_midiin.cpp" />
+    <ClCompile Include="..\ymfmidiwin\sequence_mus.cpp" />
+    <ClCompile Include="..\ymfmidiwin\sequence_xmi.cpp" />
+    <ClCompile Include="..\ymfmidiwin\win-c\getopt.c" />
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_adpcm.cpp" />
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_misc.cpp" />
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opl.cpp" />
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opm.cpp" />
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opn.cpp" />
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opq.cpp" />
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_opz.cpp" />
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_pcm.cpp" />
+    <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_ssg.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Resource.rc" />
+    <ResourceCompile Include="..\ymfmidiwin\Resource.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="ymfmidi.ico" />
-    <Image Include="ymfmidi_sleep.ico" />
+    <Image Include="..\ymfmidiwin\ymfmidi.ico" />
+    <Image Include="..\ymfmidiwin\ymfmidi_sleep.ico" />
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="ex.app.manifest" />
+    <Manifest Include="..\ymfmidiwin\ex.app.manifest" />
+  </ItemGroup>
+  <ItemGroup>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
