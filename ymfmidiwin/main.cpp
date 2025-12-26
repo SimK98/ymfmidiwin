@@ -1482,7 +1482,7 @@ void StartWasapiAudio(OPLPlayer *player)
 					continue;
 				}
 
-				int sampleremain = fifosamples - fifo.size();
+				int sampleremain = fifosamples - fifo.size() / mixFmt->nChannels;
 				if (sampleremain > 0)
 				{
 					// --- 波形生成 ---
@@ -1491,6 +1491,7 @@ void StartWasapiAudio(OPLPlayer *player)
 
 					if (!g_looping)
 						g_running &= !player->atEnd();
+
 
 					if (!player->isSleepMode()) {
 						if (g_sleeping) {
@@ -1508,6 +1509,33 @@ void StartWasapiAudio(OPLPlayer *player)
 								g_restart = true;
 								goto finalize;
 							}
+
+							// バッファを0で埋めておく
+							UINT32 initPadding = 0;
+							hr = audioClient->GetCurrentPadding(&initPadding);
+							if (FAILED(hr)) {
+								Sleep(1000);
+								g_restart = true;
+								goto finalize;
+							}
+							UINT32 initFramesToWrite = bufferFrames - initPadding;
+							if (initFramesToWrite > 0)
+							{
+								BYTE* data = nullptr;
+								hr = renderClient->GetBuffer(initFramesToWrite, &data);
+								if (FAILED(hr)) {
+									g_restart = true;
+									goto finalize;
+								}
+
+								memset(data, 0, initFramesToWrite* mixFmt->nBlockAlign);
+
+								hr = renderClient->ReleaseBuffer(initFramesToWrite, 0);
+								if (FAILED(hr)) {
+									g_restart = true;
+									goto finalize;
+								}
+							}
 						}
 
 						// --- SR 変換 ---
@@ -1524,6 +1552,7 @@ void StartWasapiAudio(OPLPlayer *player)
 							fifo.end(),
 							out.data(),
 							out.data() + d.output_frames_gen * mixFmt->nChannels);
+
 					}
 					else {
 						if (!g_sleeping) {
@@ -1535,6 +1564,8 @@ void StartWasapiAudio(OPLPlayer *player)
 								g_restart = true;
 								goto finalize;
 							}
+							// バッファがほぼ埋まっている状態としておく　再開時の遅延回避
+							fifo.assign(fifosamples * mixFmt->nChannels * 19 / 20, 0);
 						}
 						if (g_hEventWakeUp && player->getSequencerWakeupEvent()) {
 							// イベントオブジェクトで待機可能
@@ -1542,7 +1573,7 @@ void StartWasapiAudio(OPLPlayer *player)
 							WaitForMultipleObjects(sizeof(handles) / sizeof(handles[0]), handles, FALSE, INFINITE);
 						}
 						else {
-							// ポーリングで待機能
+							// ポーリングで待機
 							Sleep(100);
 						}
 						continue;

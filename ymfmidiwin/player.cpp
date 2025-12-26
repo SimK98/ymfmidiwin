@@ -1078,7 +1078,9 @@ void OPLPlayer::midiNoteOff(uint8_t channel, uint8_t note)
 		voice->justChanged = voice->on;
 		voice->on = false;
 
-		write(voice->chip, REG_VOICE_FREQH + voice->num, voice->freq >> 8);
+		if (!m_channels[channel].percussion) {
+			write(voice->chip, REG_VOICE_FREQH + voice->num, voice->freq >> 8);
+		}
 	}
 }
 

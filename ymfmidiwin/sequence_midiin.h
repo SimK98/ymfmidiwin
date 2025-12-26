@@ -279,8 +279,6 @@ private:
 
         if (self->m_closing) return;
 
-        SetEvent(self->m_hEventMidiInCallback);
-
         switch (wMsg)
         {
         case MIM_DATA:
@@ -323,6 +321,8 @@ private:
             break;
         }
         }
+
+        SetEvent(self->m_hEventMidiInCallback);
     }
 
 private:
