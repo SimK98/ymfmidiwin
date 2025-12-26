@@ -262,7 +262,7 @@ public:
         return m_sysexFifo.pop(out);
     }
 
-    HANDLE getWakeupEvent()
+    HANDLE getWakeupEvent() 
     {
         return m_hEventMidiInCallback;
     }

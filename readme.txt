@@ -166,7 +166,8 @@ ymfmidiwin -o . MIDIファイル名
 
 ●Windows FM MIDIパッチファイル（FMSYNTH.BIN）について
 Windows標準のFM MIDI音源に近い音色で再生したい場合、Windows標準のSound Blaster 
-16ドライバで使用されている音色パラメータが必要になります。この実体はWindows NT4 DDKサンプルに含まれるFMSYNTH.BINです。
+16ドライバで使用されている音色パラメータが必要になります。
+この実体はWindows NT4 DDKサンプルに含まれるFMSYNTH.BINです。
 
 ただし、このパラメータ定義は本来ドライバ開発用（DDK）に含まれるものであり、
 目的外での再配布は適切でない可能性があるため、本ソフトウェアにはFMSYNTH.BINを

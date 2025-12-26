@@ -47,7 +47,7 @@ class SequenceMID : public Sequence
 {
 public:
 	SequenceMID();
-	~SequenceMID();
+	virtual ~SequenceMID();
 	
 	void reset();
 	uint32_t update(OPLPlayer& player);
@@ -66,7 +66,7 @@ protected:
 	double m_ticksPerSec;
 
 private:
-	void read(const uint8_t *data, size_t size);
+	virtual void read(const uint8_t *data, size_t size);
 	virtual void setDefaults();
 };
 

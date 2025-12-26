@@ -169,6 +169,7 @@
     <ClInclude Include="..\ymfmidiwin\sequence_mid.h" />
     <ClInclude Include="..\ymfmidiwin\sequence_midiin.h" />
     <ClInclude Include="..\ymfmidiwin\sequence_mus.h" />
+    <ClInclude Include="..\ymfmidiwin\sequence_rcm.h" />
     <ClInclude Include="..\ymfmidiwin\sequence_xmi.h" />
     <ClInclude Include="..\ymfmidiwin\win-c\getopt.h" />
     <ClInclude Include="..\ymfmidiwin\ymfm\ymfm.h" />
@@ -202,6 +203,7 @@
     <ClCompile Include="..\ymfmidiwin\sequence_mid.cpp" />
     <ClCompile Include="..\ymfmidiwin\sequence_midiin.cpp" />
     <ClCompile Include="..\ymfmidiwin\sequence_mus.cpp" />
+    <ClCompile Include="..\ymfmidiwin\sequence_rcm.cpp" />
     <ClCompile Include="..\ymfmidiwin\sequence_xmi.cpp" />
     <ClCompile Include="..\ymfmidiwin\win-c\getopt.c" />
     <ClCompile Include="..\ymfmidiwin\ymfm\ymfm_adpcm.cpp" />

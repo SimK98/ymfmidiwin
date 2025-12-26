@@ -7,6 +7,7 @@
 #include "sequence_mus.h"
 #include "sequence_xmi.h"
 #include "sequence_midiin.h"
+#include "sequence_rcm.h"
 
 // ----------------------------------------------------------------------------
 Sequence::~Sequence() {}
@@ -68,6 +69,8 @@ Sequence* Sequence::load(const uint8_t *data, size_t size)
 		seq = new SequenceHMI();
 	else if (SequenceHMP::isValid(data, size))
 		seq = new SequenceHMP();
+	else if (SequenceRCM::isValid(data, size))
+		seq = new SequenceRCM();
 	
 	if (seq)
 	{
