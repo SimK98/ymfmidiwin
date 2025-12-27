@@ -49,6 +49,8 @@ struct OPLVoice
 	
 	// how long has this note been playing (incremented each midi update)
 	uint32_t duration = UINT_MAX;
+
+	bool delayOff = false; // 遅延させてOFF　ドラムパート用
 };
 
 class OPLPlayer : public ymfm::ymfm_interface

@@ -938,7 +938,12 @@ void OPLPlayer::updateFrequency(OPLVoice& voice)
 	
 	int note = (!voice.channel->percussion ? voice.note : voice.patch->fixedNote)
 	         + voice.patchVoice->tune;
-	
+
+	if (voice.delayOff) {
+		write(voice.chip, REG_VOICE_FREQH + voice.num, voice.freq >> 8);
+		voice.delayOff = false;
+	}
+
 	int octave = note / 12;
 	note %= 12;
 	
@@ -950,7 +955,7 @@ void OPLPlayer::updateFrequency(OPLVoice& voice)
 		freq <<= octave;
 	
 	freq *= voice.channel->pitch * voice.patchVoice->finetune;
-	
+
 	// convert the calculated frequency back to a block and F-number
 	octave = 0;
 	while (freq > 0x3ff)
@@ -960,7 +965,7 @@ void OPLPlayer::updateFrequency(OPLVoice& voice)
 	}
 	octave = std::min(7, octave);
 	voice.freq = freq | (octave << 10);
-	
+
 	write(voice.chip, REG_VOICE_FREQL + voice.num, voice.freq & 0xff);
 	write(voice.chip, REG_VOICE_FREQH + voice.num, (voice.freq >> 8) | (voice.on ? (1 << 5) : 0));
 }
@@ -1080,6 +1085,9 @@ void OPLPlayer::midiNoteOff(uint8_t channel, uint8_t note)
 
 		if (!m_channels[channel].percussion) {
 			write(voice->chip, REG_VOICE_FREQH + voice->num, voice->freq >> 8);
+		}
+		else {
+			voice->delayOff = true;
 		}
 	}
 }
