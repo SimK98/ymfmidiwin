@@ -49,6 +49,9 @@ struct OPLVoice
 	
 	// how long has this note been playing (incremented each midi update)
 	uint32_t duration = UINT_MAX;
+
+	bool delayOff = false; // キーオフを遅延させる　ドラムパート用
+	bool sustainSound = false; // Sustainな音　EGTかつSL>0の場合ドラムパートの場合でもKeyOffを有効化
 };
 
 class OPLPlayer : public ymfm::ymfm_interface

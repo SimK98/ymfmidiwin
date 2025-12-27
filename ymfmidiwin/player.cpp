@@ -578,6 +578,10 @@ void OPLPlayer::resetMIDI()
 		{
 			silenceVoice(voice);
 		}
+		else if (voice.delayOff) {
+			write(voice.chip, REG_VOICE_FREQH + voice.num, voice.freq >> 8);
+			voice.delayOff = false;
+		}
 	}
 
 	m_samplesLeft = 0;
@@ -600,6 +604,10 @@ void OPLPlayer::panic()
 			voice.justChanged = voice.on;
 			voice.on = false;
 			write(voice.chip, REG_VOICE_FREQH + voice.num, voice.freq >> 8);
+		}
+		else if (voice.delayOff) {
+			write(voice.chip, REG_VOICE_FREQH + voice.num, voice.freq >> 8);
+			voice.delayOff = false;
 		}
 	}
 }
@@ -871,6 +879,8 @@ void OPLPlayer::updatePatch(OPLVoice& voice, const OPLPatch *newPatch, uint8_t n
 	// update even for the same patch in case silenceVoice was called from somewhere else on this voice
 	write(voice.chip, REG_OP_SR + voice.op,     patchVoice.op_sr[0]);
 	write(voice.chip, REG_OP_SR + voice.op + 3, patchVoice.op_sr[1]);
+
+	voice.sustainSound = ((patchVoice.op_sr[1] >> 4) != 0xf) && (patchVoice.op_mode[1] & 0x20);
 }
 
 // ----------------------------------------------------------------------------
@@ -938,7 +948,7 @@ void OPLPlayer::updateFrequency(OPLVoice& voice)
 	
 	int note = (!voice.channel->percussion ? voice.note : voice.patch->fixedNote)
 	         + voice.patchVoice->tune;
-	
+
 	int octave = note / 12;
 	note %= 12;
 	
@@ -950,7 +960,7 @@ void OPLPlayer::updateFrequency(OPLVoice& voice)
 		freq <<= octave;
 	
 	freq *= voice.channel->pitch * voice.patchVoice->finetune;
-	
+
 	// convert the calculated frequency back to a block and F-number
 	octave = 0;
 	while (freq > 0x3ff)
@@ -960,7 +970,7 @@ void OPLPlayer::updateFrequency(OPLVoice& voice)
 	}
 	octave = std::min(7, octave);
 	voice.freq = freq | (octave << 10);
-	
+
 	write(voice.chip, REG_VOICE_FREQL + voice.num, voice.freq & 0xff);
 	write(voice.chip, REG_VOICE_FREQH + voice.num, (voice.freq >> 8) | (voice.on ? (1 << 5) : 0));
 }
@@ -1041,7 +1051,12 @@ void OPLPlayer::midiNoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 		else
 			voice = findVoice(channel, newPatch, note);
 		if (!voice) continue; // ??
-		
+
+		if (voice->delayOff) {
+			write(voice->chip, REG_VOICE_FREQH + voice->num, voice->freq >> 8);
+			voice->delayOff = false;
+		}
+
 		updatePatch(*voice, newPatch, i);
 
 		// update the note parameters for this voice
@@ -1079,7 +1094,19 @@ void OPLPlayer::midiNoteOff(uint8_t channel, uint8_t note)
 		voice->on = false;
 
 		if (!m_channels[channel].percussion) {
+			// ドラムパートではない場合普通にOFF
 			write(voice->chip, REG_VOICE_FREQH + voice->num, voice->freq >> 8);
+		}
+		else if (voice->sustainSound) {
+			// ドラムパートでもSustainになっている場合は自然に減衰させて消す
+			voice->duration = UINT_MAX;
+			write(voice->chip, REG_OP_SR + voice->op, 0xf4);
+			write(voice->chip, REG_OP_SR + voice->op + 3, 0xf4);
+			write(voice->chip, REG_VOICE_FREQH + voice->num, voice->freq >> 8);
+		}
+		else {
+			// 次に音を鳴らすときまで先延ばし
+			voice->delayOff = true;
 		}
 	}
 }
