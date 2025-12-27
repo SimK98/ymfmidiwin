@@ -1,5 +1,8 @@
 ﻿# ymfmidi for Windows
-**Software OPL FM MIDI Synthesizer**
+**Software OPL FM MIDI Synthesizer**  
+
+![platform](https://img.shields.io/badge/platform-Windows-blue)
+![license](https://img.shields.io/badge/license-BSD--3--Clause-blue) 
 
 <img src="img/ymfmidiwin.png" width="96">
 
@@ -30,10 +33,8 @@
   - チップの複数使用によって同時発音数を増加可能
 
 - **過去の Windows FM MIDI よりも MIDI 仕様への互換性が向上**
-  - GM / GS / XG の処理に対応  
-    （音色定義を調整することで、さらに互換性を向上可能）
-  - 過去の Windows FM MIDI で正しく処理されていなかった仕様を修正  
-    （ピッチベンド周りなど）
+  - GM / GS / XG の処理に対応（音色定義を調整することで、さらに互換性を向上可能）
+  - 過去の Windows FM MIDI で正しく処理されていなかった仕様を修正（ピッチベンド周りなど）
 
 - **Windows ネイティブな MIDI デバイスとして動作**
   - MIDI IN の入力を受け取れる常駐型ソフトウェアシンセサイザー
