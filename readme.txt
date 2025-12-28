@@ -23,6 +23,9 @@ MIDI環境（midiIn/Out API）からFM音源を利用可能にすることを目
 ・リアルタイム再生＆オフラインレンダリング
 　・MIDIメッセージをリアルタイムに処理し、音声出力可能
 　・MIDI再生結果をWAVファイルとして書き出し可能
+・常駐用に最適化
+　・MIDIメッセージがないときは自動的にスリープ状態になるため、低消費電力
+　・FM音源パラメータのみを保持するため、省メモリ
 
 
 ●動作環境
@@ -176,7 +179,8 @@ Windows標準のFM MIDI音源に近い音色で再生したい場合、Windows�
 Windows NT4 DDKに含まれるSound Blaster 16 サンプルドライバのFMSYNTH.BINを
 音色定義ファイルとして指定すると読み込めます。
 
-（例）ymfmidiwin //MIDIIN FMSYNTH.BIN
+（例1）ymfmidiwin hogehoge.mid FMSYNTH.BIN
+（例2）ymfmidiwin-synth FMSYNTH.BIN
 
 ②ドライバDLLから読み込む方法
 実はWindows NT4用のSound Blaster系ドライバのDLL（例：sndblst.dllなど）には、
@@ -185,7 +189,8 @@ FMSYNTH.BINと同一内容のデータがリソースとして含まれていま
 そのため、本ソフトウェアではFMSYNTH.BIN相当のリソースを含むDLLファイルを指定
 した場合も、そのリソースから音色データを読み込めるようにしています。
 
-（例）ymfmidiwin //MIDIIN sndblst.dll
+（例1）ymfmidiwin hogehoge.mid sndblst.dll
+（例2）ymfmidiwin-synth sndblst.dll
 
 FMSYNTH.BIN相当のリソースが含まれていればsndblst.dllでなくても構いません。
 
