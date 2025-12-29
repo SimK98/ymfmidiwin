@@ -38,8 +38,15 @@ extern "C" {
 #define ID_TRAY_GM_RESET	1005
 #define ID_TRAY_GS_RESET	1006
 #define ID_TRAY_XG_RESET	1007
+#define ID_TRAY_LPF_OFF		1008
+#define ID_TRAY_LPF_LIGHT	1009
+#define ID_TRAY_LPF_STRONG	1010
 
 #define INTERNAL_SR 50000
+
+#define LPF_CUTOFF_PRESET_OFF		0
+#define LPF_CUTOFF_PRESET_LIGHT		16000
+#define LPF_CUTOFF_PRESET_STRONG	8000
 
 #include "console.h"
 #include "player.h"
@@ -73,6 +80,7 @@ static char g_patchName[MAX_PATH] = { 0 };
 static int g_srconvtype = SRC_SINC_FASTEST;
 static int g_wavOutputMarginMillisecond = 1000;
 static bool g_wavOutputMarginAuto = true;
+static int g_curLPFCutoff = 0;
 
 #ifdef USE_SDL
 static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
@@ -112,8 +120,8 @@ std::string getUsageText()
 		"  -b / --buf <num>        set buffer size (default 4096)\n"
 		"  -g / --gain <num>       set gain amount (default 1.0)\n"
 		"  -r / --rate <num>       set sample rate (default 44100)\n"
-		"  --hpfilter <num>        set highpass cutoff in Hz (default 5.0)\n"
-		"  --lpfilter <num>        set lowpass cutoff in Hz (default 16000.0)\n"
+		"  --hpfilter <num>        set highpass cutoff in Hz (default 5, 0=disable)\n"
+		"  --lpfilter <num>        set lowpass cutoff in Hz (default 16000, 0=disable)\n"
 		"\n"
 		"  -p / --ptime            time to enter sleep mode (msec; default 15000)\n"
 		"\n"
@@ -542,6 +550,20 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			AppendMenu(hSubMenu, MF_STRING, ID_TRAY_GS_RESET, TEXT("GS Reset"));
 			AppendMenu(hSubMenu, MF_STRING, ID_TRAY_XG_RESET, TEXT("XG Reset"));
 
+			HMENU hSubMenuLPF = CreatePopupMenu();
+			AppendMenu(hSubMenuLPF, MF_STRING, ID_TRAY_LPF_OFF, TEXT("Off"));
+			AppendMenu(hSubMenuLPF, MF_STRING, ID_TRAY_LPF_LIGHT, TEXT("Light (16 kHz)"));
+			AppendMenu(hSubMenuLPF, MF_STRING, ID_TRAY_LPF_STRONG, TEXT("Strong (8 kHz)"));
+			if (g_curLPFCutoff == LPF_CUTOFF_PRESET_OFF) {
+				CheckMenuItem(hSubMenuLPF, ID_TRAY_LPF_OFF, MF_CHECKED | MF_BYCOMMAND);
+			}
+			else if (g_curLPFCutoff == LPF_CUTOFF_PRESET_LIGHT) {
+				CheckMenuItem(hSubMenuLPF, ID_TRAY_LPF_LIGHT, MF_CHECKED | MF_BYCOMMAND);
+			}
+			else if (g_curLPFCutoff == LPF_CUTOFF_PRESET_STRONG) {
+				CheckMenuItem(hSubMenuLPF, ID_TRAY_LPF_STRONG, MF_CHECKED | MF_BYCOMMAND);
+			}
+
 			HMENU hMenu = CreatePopupMenu();
 			AppendMenuA(hMenu, MF_STRING | MF_GRAYED, 0, g_player->getSequencerFriendlyName().c_str());
 			AppendMenuA(hMenu, MF_STRING | MF_GRAYED, 0, ("[PATCH] " + std::string(g_patchName)).c_str());
@@ -554,6 +576,8 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			else if (midiType == OPLPlayer::YamahaXG) {
 				AppendMenu(hMenu, MF_STRING | MF_GRAYED, 0, TEXT("[MODE] Yamaha XG"));
 			}
+			AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
+			AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenuLPF, TEXT("Low-pass Filter"));
 			AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_MIDIPANIC, TEXT("MIDI Panic"));
 			AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenu, TEXT("Reset"));
@@ -608,6 +632,24 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case ID_TRAY_XG_RESET:
 			if (g_player) {
 				g_player->resetMIDI(OPLPlayer::YamahaXG);
+			}
+			return 0;
+		case ID_TRAY_LPF_OFF:
+			if (g_player) {
+				g_curLPFCutoff = LPF_CUTOFF_PRESET_OFF;
+				g_player->setLPFilter(g_curLPFCutoff);
+			}
+			return 0;
+		case ID_TRAY_LPF_LIGHT:
+			if (g_player) {
+				g_curLPFCutoff = LPF_CUTOFF_PRESET_LIGHT;
+				g_player->setLPFilter(g_curLPFCutoff);
+			}
+			return 0;
+		case ID_TRAY_LPF_STRONG:
+			if (g_player) {
+				g_curLPFCutoff = LPF_CUTOFF_PRESET_STRONG;
+				g_player->setLPFilter(g_curLPFCutoff);
 			}
 			return 0;
 		case ID_TRAY_ABOUT:
@@ -711,7 +753,7 @@ int main(int argc, char **argv)
 	int bufferSize = 4096;
 	double gain = 1.0;
 	double hpfilter = 5.0;
-	double lpfilter = 16000.0;
+	double lpfilter = LPF_CUTOFF_PRESET_LIGHT;
 	OPLPlayer::ChipType chipType = OPLPlayer::ChipOPL3;
 	int numChips = 1;
 	unsigned songNum = 0;
@@ -980,6 +1022,8 @@ int main(int argc, char **argv)
 	if (songNum > 0)
 		player->setSongNum(songNum - 1);
 	player->setAutoSuspend(suspendTimeMilliseconds);
+
+	g_curLPFCutoff = lpfilter;
 
 	if (interactive)
 	{
