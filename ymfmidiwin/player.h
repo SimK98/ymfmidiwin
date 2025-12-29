@@ -78,7 +78,8 @@ public:
 	void setLoop(bool loop) { m_looping = loop; }
 	void setSampleRate(uint32_t rate);
 	void setGain(double gain);
-	void setFilter(double cutoff);
+	void setHPFilter(double cutoff);
+	void setLPFilter(double cutoff);
 	void setAutoSuspend(int suspendTimeMilliseconds);
 	
 	// enable/disable OPL3 stereo support. can be called during active playback
@@ -237,6 +238,10 @@ private:
 	double m_hpFilterFreq, m_hpFilterCoef;
 	int32_t m_hpLastIn[2] = {0}, m_hpLastOut[2] = {0};
 	float m_hpLastInF[2] = {0}, m_hpLastOutF[2] = {0};
+	// IIR 1-pole lowpass filter
+	double m_lpFilterFreq, m_lpFilterCoef;
+	int32_t m_lpLastOut[2] = { 0 };
+	float m_lpLastOutF[2] = { 0 };
 	
 	bool m_looping;
 	bool m_timePassed;

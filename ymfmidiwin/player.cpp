@@ -74,9 +74,10 @@ OPLPlayer::OPLPlayer(int numChips, ChipType type)
 	m_samplePos = 0.0;
 	m_samplesLeft = 0;
 	m_hpFilterFreq = 5.0; // 5Hz default to reduce DC offset
+	m_lpFilterFreq = 0; // disable
 	setSampleRate(44100); // setup both sample step and filter coefficients
 	setGain(1.0);
-	
+
 	m_looping = false;
 	m_sleepMode = false;
 
@@ -98,7 +99,8 @@ void OPLPlayer::setSampleRate(uint32_t rate)
 	m_sampleStep = (double)rate / rateOPL;
 	m_sampleRate = rate;
 	
-	setFilter(m_hpFilterFreq);
+	setHPFilter(m_hpFilterFreq);
+	setLPFilter(m_lpFilterFreq);
 //	printf("OPL sample rate = %u / output sample rate = %u / step %02f\n", rateOPL, rate, m_sampleStep);
 }
 
@@ -109,7 +111,7 @@ void OPLPlayer::setGain(double gain)
 }
 
 // ----------------------------------------------------------------------------
-void OPLPlayer::setFilter(double cutoff)
+void OPLPlayer::setHPFilter(double cutoff)
 {
 	m_hpFilterFreq = cutoff;
 	
@@ -123,6 +125,24 @@ void OPLPlayer::setFilter(double cutoff)
 		m_hpFilterCoef = 1.0 / ((2 * pi * cutoff) / m_sampleRate + 1);
 	}
 //	printf("sample rate = %u / cutoff %f Hz / filter coef %f\n", m_sampleRate, cutoff, m_hpFilterCoef);
+}
+
+// ----------------------------------------------------------------------------
+void OPLPlayer::setLPFilter(double cutoff)
+{
+	m_lpFilterFreq = cutoff;
+
+	if (m_lpFilterFreq <= 0.0)
+	{
+		m_lpFilterCoef = 1.0;
+	}
+	else
+	{
+		static const double pi = 3.14159265358979323846;
+		m_lpFilterCoef = 1 - exp(-m_lpFilterFreq * 2 * pi / m_sampleRate);
+	}
+	m_lpLastOut[0] = m_lpLastOut[1] = 0;
+	m_lpLastOutF[0] = m_lpLastOutF[1] = 0;
 }
 
 void OPLPlayer::setAutoSuspend(int suspendTimeMilliseconds) {
@@ -219,6 +239,14 @@ void OPLPlayer::generate(float *data, unsigned numSamples)
 					data[samp+i] = m_hpLastOutF[i];
 				}
 			}
+			if (m_lpFilterCoef < 1.0)
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					m_lpLastOutF[i] = m_lpFilterCoef * data[samp + i] + (1 - m_lpFilterCoef) * m_lpLastOutF[i];
+					data[samp + i] = m_lpLastOutF[i];
+				}
+			}
 			
 			samp += 2;
 			m_samplePos -= 1.0;
@@ -248,6 +276,14 @@ void OPLPlayer::generate(int16_t *data, unsigned numSamples)
 					
 					m_hpLastOut[i] = m_hpFilterCoef * (m_hpLastOut[i] + m_output.data[i] - lastIn);
 					m_output.data[i] = m_hpLastOut[i];
+				}
+			}
+			if (m_lpFilterCoef < 1.0)
+			{
+				for (int i = 0; i < 2; i++)
+				{
+					m_lpLastOut[i] = m_lpFilterCoef * m_output.data[i] + (1 - m_lpFilterCoef) * m_lpLastOut[i];
+					m_output.data[i] = m_lpLastOut[i];
 				}
 			}
 
