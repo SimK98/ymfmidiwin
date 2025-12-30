@@ -724,7 +724,7 @@ OPLVoice* OPLPlayer::findVoice(uint8_t channel, const OPLPatch *patch, uint8_t n
 		if (voice.delayOff)
 		{
 			uint32_t vduration = voice.duration;
-			if ((useFourOp(voice.patch) || useFourOp(patch)) && voice.fourOpOther) {
+			if (!useFourOp(voice.patch) && useFourOp(patch) && voice.fourOpOther) {
 				if (voice.fourOpOther->duration < vduration) {
 					vduration = voice.fourOpOther->duration;
 				}
