@@ -77,6 +77,7 @@ static OPLPlayer *g_player = nullptr;
 
 static char g_patchName[MAX_PATH] = { 0 };
 
+static int g_buffersize = 0;
 static int g_srconvtype = SRC_SINC_FASTEST;
 static int g_wavOutputMarginMillisecond = 1000;
 static bool g_wavOutputMarginAuto = true;
@@ -117,7 +118,8 @@ std::string getUsageText()
 		"  -c / --chip <num>       set type of chip (1 = OPL, 2 = OPL2, 3 = OPL3; default 3)\n"
 		"  -n / --num <num>        set number of chips (default 1)\n"
 		"  -m / --mono             ignore MIDI panning information (OPL3 only)\n"
-		"  -b / --buf <num>        set buffer size (default 4096)\n"
+		"  -b / --buf <num>        set buffer size\n"
+		"  --bufms <num(msec)>     set buffer size in milliseconds\n"
 		"  -g / --gain <num>       set gain amount (default 1.0)\n"
 		"  -r / --rate <num>       set sample rate (default 44100)\n"
 		"  --hpfilter <num>        set highpass cutoff in Hz (default 5, 0=disable)\n"
@@ -152,6 +154,7 @@ static const option options[] =
 	{"num",       1, nullptr, 'n'},
 	{"mono",      0, nullptr, 'm'},
 	{"buf",       1, nullptr, 'b'},
+	{"bufms",     1, nullptr,  0 },
 	{"gain",      1, nullptr, 'g'},
 	{"rate",      1, nullptr, 'r'},
 	{"filter",    1, nullptr, 'f'},
@@ -750,7 +753,7 @@ int main(int argc, char **argv)
 	const char* wavPath = nullptr;
 	char patchPathTemp[MAX_PATH] = { 0 };
 	int sampleRate = 44100;
-	int bufferSize = 4096;
+	int bufferSize = 0;
 	double gain = 1.0;
 	double hpfilter = 5.0;
 	double lpfilter = LPF_CUTOFF_PRESET_LIGHT;
@@ -928,6 +931,16 @@ int main(int argc, char **argv)
 					exit(1);
 				}
 			}
+			else if (strcmp(options[optionindex].name, "bufms") == 0) {
+				// バッファサイズミリ秒指定
+				uint64_t bufferSizeMilliseconds = atof(optarg);
+				if (bufferSizeMilliseconds < 0)
+				{
+					ShowErrorMessage("invalid buffer size: %s\n", optarg);
+					exit(1);
+				}
+				bufferSize = (int)(bufferSizeMilliseconds * 44100 / 1000);
+			}
 			break;
 		}
 	}
@@ -1068,7 +1081,7 @@ int main(int argc, char **argv)
 		SetConsoleCtrlHandler(ConsoleHandler, TRUE);
 #endif
 #ifdef USE_SDL
-		mainLoopSDL(player, bufferSize, interactive);
+		mainLoopSDL(player, bufferSize == 0 ? 4096 : bufferSize, interactive);
 #else
 		mainLoopWASAPI(player, bufferSize, interactive, traymode);
 #endif
@@ -1503,7 +1516,7 @@ void StartWasapiAudio(OPLPlayer *player)
 	hr = audioClient->Initialize(
 		AUDCLNT_SHAREMODE_SHARED,
 		AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-		2000000,
+		g_buffersize == 0 ? 0 : (int)((uint64_t)10000000 * g_buffersize / 44100),
 		0,
 		mixFmt,
 		nullptr);
@@ -1757,6 +1770,8 @@ void AudioThread()
 static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, bool traymode)
 {
 	HWND hwnd = NULL;
+
+	g_buffersize = bufferSize;
 
 	g_player = player;
 
