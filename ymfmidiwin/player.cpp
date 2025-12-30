@@ -691,7 +691,7 @@ OPLVoice* OPLPlayer::findVoice(uint8_t channel, const OPLPatch *patch, uint8_t n
 	
 		if (!voice.on && !voice.justChanged)
 		{
-			if (voice.channel->num == channel && voice.note == note
+			if (voice.channel->num == channel && voice.note == note && !voice.delayOff
 				&& voice.duration < UINT_MAX)
 			{
 				// found an old voice that was using the same note and patch
