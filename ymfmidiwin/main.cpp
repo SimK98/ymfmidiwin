@@ -78,6 +78,7 @@ static OPLPlayer *g_player = nullptr;
 static char g_patchName[MAX_PATH] = { 0 };
 
 static int g_buffersize = 0;
+static int g_buffersizeNanoseconds = 0;
 static int g_srconvtype = SRC_SINC_FASTEST;
 static int g_wavOutputMarginMillisecond = 1000;
 static bool g_wavOutputMarginAuto = true;
@@ -940,6 +941,7 @@ int main(int argc, char **argv)
 					exit(1);
 				}
 				bufferSize = (int)(bufferSizeMilliseconds * 44100 / 1000);
+				g_buffersizeNanoseconds = bufferSizeMilliseconds * 1000 * 10;
 			}
 			break;
 		}
@@ -1516,7 +1518,7 @@ void StartWasapiAudio(OPLPlayer *player)
 	hr = audioClient->Initialize(
 		AUDCLNT_SHAREMODE_SHARED,
 		AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-		g_buffersize == 0 ? 0 : (int)((uint64_t)10000000 * g_buffersize / 44100),
+		g_buffersizeNanoseconds != 0 ? g_buffersizeNanoseconds : (int)((uint64_t)10000000 * g_buffersize / mixFmt->nSamplesPerSec),
 		0,
 		mixFmt,
 		nullptr);
