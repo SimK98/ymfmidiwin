@@ -1468,6 +1468,7 @@ void StartWasapiAudio(OPLPlayer *player)
 	WAVEFORMATEX* mixFmt = nullptr;
 	SRC_STATE* srconv = nullptr;
 	DeviceNotificationClient* notify = new DeviceNotificationClient();
+	HANDLE hAvrt = nullptr;
 
 	bool notifyValid = false;
 
@@ -1576,6 +1577,9 @@ void StartWasapiAudio(OPLPlayer *player)
 				goto finalize;
 			}
 
+			DWORD taskIndex = 0;
+			hAvrt = AvSetMmThreadCharacteristicsW(L"Pro Audio", &taskIndex);
+
 			while (g_running && !g_restart)
 			{
 				if (g_paused)
@@ -1611,6 +1615,7 @@ void StartWasapiAudio(OPLPlayer *player)
 								g_restart = true;
 								goto finalize;
 							}
+							hAvrt = AvSetMmThreadCharacteristicsW(L"Pro Audio", &taskIndex);
 
 							// バッファを0で埋めておく
 							UINT32 initPadding = 0;
@@ -1665,6 +1670,10 @@ void StartWasapiAudio(OPLPlayer *player)
 								Sleep(1000);
 								g_restart = true;
 								goto finalize;
+							}
+							if (hAvrt) {
+								AvRevertMmThreadCharacteristics(hAvrt);
+								hAvrt = nullptr;
 							}
 							// バッファがほぼ埋まっている状態としておく　再開時の遅延回避
 							fifo.assign(fifosamples * mixFmt->nChannels * 19 / 20, 0);
@@ -1730,6 +1739,11 @@ void StartWasapiAudio(OPLPlayer *player)
 	}
 
 finalize:
+	if (hAvrt) {
+		AvRevertMmThreadCharacteristics(hAvrt);
+		hAvrt = nullptr;
+	}
+
 	if (srconv) src_delete(srconv);
 	srconv = nullptr;
 
