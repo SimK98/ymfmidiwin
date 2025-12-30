@@ -38,8 +38,15 @@ extern "C" {
 #define ID_TRAY_GM_RESET	1005
 #define ID_TRAY_GS_RESET	1006
 #define ID_TRAY_XG_RESET	1007
+#define ID_TRAY_LPF_OFF		1008
+#define ID_TRAY_LPF_LIGHT	1009
+#define ID_TRAY_LPF_STRONG	1010
 
 #define INTERNAL_SR 50000
+
+#define LPF_CUTOFF_PRESET_OFF		0
+#define LPF_CUTOFF_PRESET_LIGHT		16000
+#define LPF_CUTOFF_PRESET_STRONG	8000
 
 #include "console.h"
 #include "player.h"
@@ -73,6 +80,7 @@ static char g_patchName[MAX_PATH] = { 0 };
 static int g_srconvtype = SRC_SINC_FASTEST;
 static int g_wavOutputMarginMillisecond = 1000;
 static bool g_wavOutputMarginAuto = true;
+static int g_curLPFCutoff = 0;
 
 #ifdef USE_SDL
 static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
@@ -112,7 +120,8 @@ std::string getUsageText()
 		"  -b / --buf <num>        set buffer size (default 4096)\n"
 		"  -g / --gain <num>       set gain amount (default 1.0)\n"
 		"  -r / --rate <num>       set sample rate (default 44100)\n"
-		"  -f / --filter <num>     set highpass cutoff in Hz (default 5.0)\n"
+		"  --hpfilter <num>        set highpass cutoff in Hz (default 5, 0=disable)\n"
+		"  --lpfilter <num>        set lowpass cutoff in Hz (default 16000, 0=disable)\n"
 		"\n"
 		"  -p / --ptime            time to enter sleep mode (msec; default 15000)\n"
 		"\n"
@@ -150,6 +159,8 @@ static const option options[] =
 	{"ptime",     0, nullptr, 'p'},
 	{"resampler", 1, nullptr,  0 },
 	{"tail-time", 1, nullptr,  0 },
+	{"hpfilter",  1, nullptr,  0 },
+	{"lpfilter",  1, nullptr,  0 },
 	{0}
 };
 
@@ -539,6 +550,20 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			AppendMenu(hSubMenu, MF_STRING, ID_TRAY_GS_RESET, TEXT("GS Reset"));
 			AppendMenu(hSubMenu, MF_STRING, ID_TRAY_XG_RESET, TEXT("XG Reset"));
 
+			HMENU hSubMenuLPF = CreatePopupMenu();
+			AppendMenu(hSubMenuLPF, MF_STRING, ID_TRAY_LPF_OFF, TEXT("Off"));
+			AppendMenu(hSubMenuLPF, MF_STRING, ID_TRAY_LPF_LIGHT, TEXT("Light (16 kHz)"));
+			AppendMenu(hSubMenuLPF, MF_STRING, ID_TRAY_LPF_STRONG, TEXT("Strong (8 kHz)"));
+			if (g_curLPFCutoff == LPF_CUTOFF_PRESET_OFF) {
+				CheckMenuItem(hSubMenuLPF, ID_TRAY_LPF_OFF, MF_CHECKED | MF_BYCOMMAND);
+			}
+			else if (g_curLPFCutoff == LPF_CUTOFF_PRESET_LIGHT) {
+				CheckMenuItem(hSubMenuLPF, ID_TRAY_LPF_LIGHT, MF_CHECKED | MF_BYCOMMAND);
+			}
+			else if (g_curLPFCutoff == LPF_CUTOFF_PRESET_STRONG) {
+				CheckMenuItem(hSubMenuLPF, ID_TRAY_LPF_STRONG, MF_CHECKED | MF_BYCOMMAND);
+			}
+
 			HMENU hMenu = CreatePopupMenu();
 			AppendMenuA(hMenu, MF_STRING | MF_GRAYED, 0, g_player->getSequencerFriendlyName().c_str());
 			AppendMenuA(hMenu, MF_STRING | MF_GRAYED, 0, ("[PATCH] " + std::string(g_patchName)).c_str());
@@ -551,6 +576,8 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			else if (midiType == OPLPlayer::YamahaXG) {
 				AppendMenu(hMenu, MF_STRING | MF_GRAYED, 0, TEXT("[MODE] Yamaha XG"));
 			}
+			AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
+			AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenuLPF, TEXT("Low-pass Filter"));
 			AppendMenu(hMenu, MF_SEPARATOR, 0, nullptr);
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_MIDIPANIC, TEXT("MIDI Panic"));
 			AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSubMenu, TEXT("Reset"));
@@ -605,6 +632,24 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case ID_TRAY_XG_RESET:
 			if (g_player) {
 				g_player->resetMIDI(OPLPlayer::YamahaXG);
+			}
+			return 0;
+		case ID_TRAY_LPF_OFF:
+			if (g_player) {
+				g_curLPFCutoff = LPF_CUTOFF_PRESET_OFF;
+				g_player->setLPFilter(g_curLPFCutoff);
+			}
+			return 0;
+		case ID_TRAY_LPF_LIGHT:
+			if (g_player) {
+				g_curLPFCutoff = LPF_CUTOFF_PRESET_LIGHT;
+				g_player->setLPFilter(g_curLPFCutoff);
+			}
+			return 0;
+		case ID_TRAY_LPF_STRONG:
+			if (g_player) {
+				g_curLPFCutoff = LPF_CUTOFF_PRESET_STRONG;
+				g_player->setLPFilter(g_curLPFCutoff);
 			}
 			return 0;
 		case ID_TRAY_ABOUT:
@@ -677,6 +722,21 @@ void EnableHighDpiScaling()
 
 #endif
 
+void ShowErrorMessage(const char* fmt, ...)
+{
+	char stmp[2048];
+	va_list ap;
+	va_start(ap, fmt);
+	vsprintf_s(stmp, fmt, ap);
+	strcat_s(stmp, "\n");
+	va_end(ap);
+#ifdef YMFMIDI_CONSOLE
+	fprintf(stderr, stmp);
+#else
+	MessageBoxA(NULL, stmp, "ymfmidiwin", MB_OK | MB_ICONEXCLAMATION);
+#endif
+}
+
 // ----------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
@@ -692,7 +752,8 @@ int main(int argc, char **argv)
 	int sampleRate = 44100;
 	int bufferSize = 4096;
 	double gain = 1.0;
-	double filter = 5.0;
+	double hpfilter = 5.0;
+	double lpfilter = LPF_CUTOFF_PRESET_LIGHT;
 	OPLPlayer::ChipType chipType = OPLPlayer::ChipOPL3;
 	int numChips = 1;
 	unsigned songNum = 0;
@@ -732,9 +793,14 @@ int main(int argc, char **argv)
 			break;
 		
 		case 'o':
+#ifdef YMFMIDI_CONSOLE
 			wavPath = optarg;
 			g_looping = false;
 			break;
+#else
+			MessageBoxW(NULL, L"Please use ymfmidiwin (console version) to output a wave file.", L"ymfmidiwin-synth", MB_OK | MB_ICONINFORMATION);
+			return 1;
+#endif
 		
 		case 'c':
 			switch (atoi(optarg))
@@ -743,7 +809,7 @@ int main(int argc, char **argv)
 			case 2: chipType = OPLPlayer::ChipOPL2; break;
 			case 3: chipType = OPLPlayer::ChipOPL3; break;
 			default:
-				fprintf(stderr, "invalid chip type\n");
+				ShowErrorMessage("invalid chip type: %s\n", optarg);
 				exit(1);
 			}
 			break;
@@ -752,7 +818,7 @@ int main(int argc, char **argv)
 			numChips = atoi(optarg);
 			if (numChips < 1)
 			{
-				fprintf(stderr, "number of chips must be at least 1\n");
+				ShowErrorMessage("number of chips must be at least 1\n");
 				exit(1);
 			}
 			break;
@@ -765,7 +831,7 @@ int main(int argc, char **argv)
 			bufferSize = atoi(optarg);
 			if (!bufferSize)
 			{
-				fprintf(stderr, "invalid buffer size: %s\n", optarg);
+				ShowErrorMessage("invalid buffer size: %s\n", optarg);
 				exit(1);
 			}
 			break;
@@ -774,7 +840,7 @@ int main(int argc, char **argv)
 			gain = atof(optarg);
 			if (!gain)
 			{
-				fprintf(stderr, "invalid gain: %s\n", optarg);
+				ShowErrorMessage("invalid gain: %s\n", optarg);
 				exit(1);
 			}
 			break;
@@ -783,16 +849,16 @@ int main(int argc, char **argv)
 			sampleRate = atoi(optarg);
 			if (!sampleRate)
 			{
-				fprintf(stderr, "invalid sample rate: %s\n", optarg);
+				ShowErrorMessage("invalid sample rate: %s\n", optarg);
 				exit(1);
 			}
 			break;
 		
 		case 'f':
-			filter = atof(optarg);
-			if (filter < 0.0)
+			hpfilter = atof(optarg);
+			if (hpfilter < 0.0)
 			{
-				fprintf(stderr, "invalid cutoff: %s\n", optarg);
+				ShowErrorMessage("invalid cutoff: %s\n", optarg);
 				exit(1);
 			}
 			break;
@@ -800,8 +866,8 @@ int main(int argc, char **argv)
 		case 't':
 			// タスクトレイ常駐モード
 #ifdef YMFMIDI_CONSOLE
-			fprintf(stderr, "--tray option detected.\n");
-			fprintf(stderr, "Please use ymfmidi-synth.exe\n");
+			ShowErrorMessage("--tray option detected.\n");
+			ShowErrorMessage("Please use ymfmidi-synth.exe\n");
 			printf("Press Enter key to continue in console mode...\n");
 			getchar();
 #else
@@ -842,6 +908,24 @@ int main(int argc, char **argv)
 					g_wavOutputMarginAuto = false;
 					g_wavOutputMarginMillisecond = atoi(optarg);
 					if (g_wavOutputMarginMillisecond < 0) g_wavOutputMarginMillisecond = 0;
+				}
+			}
+			else if (strcmp(options[optionindex].name, "hpfilter") == 0) {
+				// ハイパスフィルタ
+				hpfilter = atof(optarg);
+				if (hpfilter < 0.0)
+				{
+					ShowErrorMessage("invalid cutoff: %s\n", optarg);
+					exit(1);
+				}
+			}
+			else if (strcmp(options[optionindex].name, "lpfilter") == 0) {
+				// ローパスフィルタ
+				lpfilter = atof(optarg);
+				if (lpfilter < 0.0)
+				{
+					ShowErrorMessage("invalid cutoff: %s\n", optarg);
+					exit(1);
 				}
 			}
 			break;
@@ -885,7 +969,7 @@ int main(int argc, char **argv)
 	
 	if (!player->loadSequence(songPath))
 	{
-		fprintf(stderr, "couldn't load %s\n", songPath);
+		ShowErrorMessage("couldn't load %s\n", songPath);
 		delete player;
 		exit(1);
 		return 1;
@@ -906,7 +990,7 @@ int main(int argc, char **argv)
 		// その後でFMSYNTH.BINで上書き
 		if (!player->loadPatches(patchPath))
 		{
-			fprintf(stderr, "couldn't load %s\n", patchPath);
+			ShowErrorMessage("couldn't load %s\n", patchPath);
 			delete player;
 			exit(1);
 			return 1;
@@ -919,7 +1003,7 @@ int main(int argc, char **argv)
 		path += "\\GENMIDI.wopl";
 		if (!player->loadPatches(path.c_str()))
 		{
-			fprintf(stderr, "couldn't load %s\n", patchPath);
+			ShowErrorMessage("couldn't load %s\n", patchPath);
 			delete player;
 			exit(1);
 			return 1;
@@ -932,11 +1016,14 @@ int main(int argc, char **argv)
 	player->setLoop(g_looping);
 	player->setSampleRate(sampleRate);
 	player->setGain(gain);
-	player->setFilter(filter);
+	player->setHPFilter(hpfilter);
+	player->setLPFilter(lpfilter);
 	player->setStereo(stereo);
 	if (songNum > 0)
 		player->setSongNum(songNum - 1);
 	player->setAutoSuspend(suspendTimeMilliseconds);
+
+	g_curLPFCutoff = lpfilter;
 
 	if (interactive)
 	{
@@ -971,7 +1058,7 @@ int main(int argc, char **argv)
 			mainLoopWAV(player, wavPath, interactive);
 		}
 		else {
-			fprintf(stderr, "WAV output is not possible when using MIDI IN\n");
+			ShowErrorMessage("WAV output is not possible when using MIDI IN\n");
 		}
 	}
 	else
@@ -1038,12 +1125,12 @@ static void mainLoopSDL(OPLPlayer *player, int bufferSize, bool interactive)
 	
 	if (SDL_OpenAudio(&spec, &g_audioSpec))
 	{
-		fprintf(stderr, "couldn't open audio device\n");
+		ShowErrorMessage("couldn't open audio device\n");
 		exit(1);
 	}
 	else if (g_audioSpec.format != AUDIO_F32SYS && g_audioSpec.format != AUDIO_S16SYS)
 	{
-		fprintf(stderr, "unsupported audio format (0x%x)\n", g_audioSpec.format);
+		ShowErrorMessage("unsupported audio format (0x%x)\n", g_audioSpec.format);
 		exit(1);
 	}
 	
@@ -1123,7 +1210,7 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 	FILE* wav;
 	if (fopen_s(&wav, path, "wb"))
 	{
-		fprintf(stderr, "couldn't open %s\n", path);
+		ShowErrorMessage("couldn't open %s\n", path);
 		exit(1);
 	}
 	
@@ -1225,7 +1312,7 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 
 		if (fwrite(out16.data(), bytesPerSample, gensamples, wav) != gensamples)
 		{
-			fprintf(stderr, "writing WAV data failed\n");
+			ShowErrorMessage("writing WAV data failed\n");
 			exit(1);
 		}
 		numSamples += gensamples;
@@ -1303,7 +1390,7 @@ static void mainLoopWAV(OPLPlayer *player, const char *path, bool interactive)
 	fseek(wav, 0, SEEK_SET);
 	if (fwrite(header, 1, sizeof(header), wav) != sizeof(header))
 	{
-		fprintf(stderr, "writing WAV header failed\n");
+		ShowErrorMessage("writing WAV header failed\n");
 		exit(1);
 	}
 	
@@ -1379,7 +1466,7 @@ void StartWasapiAudio(OPLPlayer *player)
 	hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
 			CLSCTX_ALL, IID_PPV_ARGS(&enumerator));
 	if (FAILED(hr)) {
-		fprintf(stderr, "MMDeviceEnumerator CoCreateInstance failed\n");
+		ShowErrorMessage("MMDeviceEnumerator CoCreateInstance failed\n");
 		goto finalize;
 	}
 
