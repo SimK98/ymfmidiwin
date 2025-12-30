@@ -78,7 +78,7 @@ static OPLPlayer *g_player = nullptr;
 static char g_patchName[MAX_PATH] = { 0 };
 
 static int g_buffersize = 0;
-static int g_buffersizeNanoseconds = 0;
+static int g_buffersizeNanoseconds = 100 * 1000 * 10;
 static int g_srconvtype = SRC_SINC_FASTEST;
 static int g_wavOutputMarginMillisecond = 1000;
 static bool g_wavOutputMarginAuto = true;
@@ -119,8 +119,8 @@ std::string getUsageText()
 		"  -c / --chip <num>       set type of chip (1 = OPL, 2 = OPL2, 3 = OPL3; default 3)\n"
 		"  -n / --num <num>        set number of chips (default 1)\n"
 		"  -m / --mono             ignore MIDI panning information (OPL3 only)\n"
-		"  -b / --buf <num>        set buffer size\n"
-		"  --bufms <num(msec)>     set buffer size in milliseconds\n"
+		"  -b / --buf <num>        set buffer size (0=minimum)\n"
+		"  --bufms <num(msec)>     set buffer size in milliseconds (0=minimum)\n"
 		"  -g / --gain <num>       set gain amount (default 1.0)\n"
 		"  -r / --rate <num>       set sample rate (default 44100)\n"
 		"  --hpfilter <num>        set highpass cutoff in Hz (default 5, 0=disable)\n"
