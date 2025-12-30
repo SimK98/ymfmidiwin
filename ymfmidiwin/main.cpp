@@ -1554,7 +1554,7 @@ void StartWasapiAudio(OPLPlayer *player)
 
 			// --- FIFO ---
 			std::vector<float> fifo;
-			const int fifosamples = bufferFrames * 4;
+			const int fifosamples = bufferFrames;
 			fifo.reserve(fifosamples * mixFmt->nChannels);
 
 			const int outBufferSamples = fifosamples + 64;
