@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstring>
 
-#if 0
+#if 1
 #include <windows.h>
 #undef	min
 #undef	TRACEOUT
@@ -691,7 +691,11 @@ OPLVoice* OPLPlayer::findVoice(uint8_t channel, const OPLPatch *patch, uint8_t n
 	
 		if (!voice.on && !voice.justChanged)
 		{
-			if (voice.channel->num == channel && voice.note == note && !voice.delayOff
+			// ‚±‚±‚Å‚Í’x‰„OFF‚Ìvoice‚Í‘ÎÛŠO‚Æ‚·‚é
+			if (voice.delayOff || (useFourOp(patch) && voice.fourOpOther->delayOff))
+				continue;
+
+			if (voice.channel->num == channel && voice.note == note
 				&& voice.duration < UINT_MAX)
 			{
 				// found an old voice that was using the same note and patch
@@ -710,13 +714,63 @@ OPLVoice* OPLPlayer::findVoice(uint8_t channel, const OPLPatch *patch, uint8_t n
 	}
 	
 	if (found) return found;
+
+	// ’x‰„OFF‚Ìvoice‚Ì‚¤‚¿ŒÃ‚¢‚à‚Ì‚ðÁ‚·
+	for (auto& voice : m_voices)
+	{
+		if (useFourOp(patch) && !voice.fourOpPrimary)
+			continue;
+
+		if (voice.delayOff)
+		{
+			uint32_t vduration = voice.duration;
+			if ((useFourOp(voice.patch) || useFourOp(patch)) && voice.fourOpOther) {
+				if (voice.fourOpOther->duration < vduration) {
+					vduration = voice.fourOpOther->duration;
+					TRACEOUT(("4op exclude"));
+				}
+			}
+			if (vduration > duration)
+			{
+				found = &voice;
+				duration = vduration;
+			}
+		}
+	}
+
+	if (found) {
+		write(found->chip, REG_VOICE_FREQH + found->num, found->freq >> 8);
+		found->delayOff = false;
+		if ((useFourOp(found->patch) || useFourOp(patch)) && found->fourOpOther) {
+			write(found->fourOpOther->chip, REG_VOICE_FREQH + found->fourOpOther->num, found->fourOpOther->freq >> 8);
+			found->fourOpOther->delayOff = false;
+		}
+		return found;
+	}
+
+	//// ‚»‚ê‚Å‚à‹ó‚«‚ª‚È‚¢‚È‚ç’x‰„OFF‚Ìvoice‚ð‘S•”Á‚·
+	//for (auto& voice : m_voices)
+	//{
+	//	if (useFourOp(patch) && !voice.fourOpPrimary)
+	//		continue;
+
+	//	if (voice.delayOff)
+	//	{
+	//		write(voice.chip, REG_VOICE_FREQH + voice.num, voice.freq >> 8);
+	//		voice.delayOff = false;
+	//		if (useFourOp(voice.patch) && voice.fourOpOther) {
+	//			write(voice.fourOpOther->chip, REG_VOICE_FREQH + voice.fourOpOther->num, voice.fourOpOther->freq >> 8);
+	//			voice.fourOpOther->delayOff = false;
+	//		}
+	//	}
+	//}
+
 	// if we didn't find one yet, just try to find an old one
 	// using the same patch, even if it should still be playing.
 	for (auto& voice : m_voices)
 	{
 		if (useFourOp(patch) && !voice.fourOpPrimary)
 			continue;
-		
 		if (voice.patch == patch && voice.duration > duration)
 		{
 			found = &voice;
@@ -1009,6 +1063,7 @@ void OPLPlayer::updateFrequency(OPLVoice& voice)
 
 	write(voice.chip, REG_VOICE_FREQL + voice.num, voice.freq & 0xff);
 	write(voice.chip, REG_VOICE_FREQH + voice.num, (voice.freq >> 8) | (voice.on ? (1 << 5) : 0));
+	if (!voice.on) voice.delayOff = false;
 }
 
 // ----------------------------------------------------------------------------
@@ -1017,6 +1072,7 @@ void OPLPlayer::silenceVoice(OPLVoice& voice)
 	voice.on = false;
 	voice.justChanged = true;
 	voice.duration = UINT_MAX;
+	voice.delayOff = false;
 
 	write(voice.chip, REG_OP_SR + voice.op,     0xff);
 	write(voice.chip, REG_OP_SR + voice.op + 3, 0xff);
@@ -1089,8 +1145,13 @@ void OPLPlayer::midiNoteOn(uint8_t channel, uint8_t note, uint8_t velocity)
 		if (!voice) continue; // ??
 
 		if (voice->delayOff) {
+			TRACEOUT(("delayOff"));
 			write(voice->chip, REG_VOICE_FREQH + voice->num, voice->freq >> 8);
 			voice->delayOff = false;
+			//if (useFourOp(voice->patch) && voice->fourOpOther) {
+			//	write(voice->fourOpOther->chip, REG_VOICE_FREQH + voice->fourOpOther->num, voice->fourOpOther->freq >> 8);
+			//	voice->fourOpOther->delayOff = false;
+			//}
 		}
 
 		updatePatch(*voice, newPatch, i);
@@ -1272,6 +1333,7 @@ void OPLPlayer::midiControlChange(uint8_t channel, uint8_t control, uint8_t valu
 				silenceVoice(voice);
 				voice.justChanged = voice.on;
 				voice.on = false;
+				voice.delayOff = false;
 				write(voice.chip, REG_VOICE_FREQH + voice.num, voice.freq >> 8);
 			}
 		}
