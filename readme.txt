@@ -122,7 +122,8 @@ MIDIファイル名として//MIDIINと書くとMIDI INデバイスとして常�
   -c / --chip <num>       チップ種別(1=OPL, 2=OPL2, 3=OPL3; デフォルト3)
   -n / --num <num>        チップ数(デフォルト1)
   -m / --mono             強制モノラル化 (OPL3の場合のみ)
-  -b / --buf <num>        バッファサイズ指示(デフォルト4096)
+  -b / --buf <num>        バッファサイズをバイト単位で指定
+  --bufms <num(msec)>     バッファサイズをミリ秒で指定
   -g / --gain <num>       音量ゲイン(デフォルト1.0)
   -r / --rate <num>       WAV出力サンプリングレート(デフォルト44100)
   --hpfilter <num>        Hz単位のハイパスフィルタカットオフ (default 5, 0=無効)
