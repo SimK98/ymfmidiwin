@@ -1691,7 +1691,8 @@ void StartWasapiAudio(OPLPlayer *player)
 					}
 				}
 
-				if (WaitForSingleObject(hAudioEvent, 200) == WAIT_TIMEOUT) {
+				if (g_sleeping) {
+					Sleep(100);
 					continue;
 				}
 
@@ -1705,6 +1706,20 @@ void StartWasapiAudio(OPLPlayer *player)
 				}
 
 				UINT32 framesAvailable = bufferFrames - padding;
+
+				if (framesAvailable < bufferFrames / 2 && WaitForSingleObject(hAudioEvent, 200) == WAIT_TIMEOUT) {
+					continue;
+				}
+
+				padding = 0;
+				hr = audioClient->GetCurrentPadding(&padding);
+				if (FAILED(hr)) {
+					Sleep(1000);
+					g_restart = true;
+					goto finalize;
+				}
+
+				framesAvailable = bufferFrames - padding;
 
 				UINT32 fifoFrames = (UINT32)(fifo.size() / mixFmt->nChannels);
 				UINT32 framesToWrite = min(framesAvailable, fifoFrames);
