@@ -349,12 +349,13 @@ void CreateTrayIcon(HWND hwnd)
 {
 	ReleaseOldTrayIcon();
 
+	typedef int (WINAPI* PFN_GetSystemMetricsForDpi)(int, UINT);
+	HMODULE hModUser32 = GetModuleHandle(L"user32.dll");
+	PFN_GetSystemMetricsForDpi pGetSystemMetricsForDpi = hModUser32 ? (PFN_GetSystemMetricsForDpi)GetProcAddress(hModUser32, "GetSystemMetricsForDpi") : nullptr;
+
 	UINT dpi = GetDpiForWindow(hwnd);
-	int iconSizeX = GetSystemMetrics(SM_CXSMICON);
-	int iconSizeY = GetSystemMetrics(SM_CYSMICON);
-	char ttt[200] = { 0 };
-	sprintf_s(ttt, "DPI: %d, %d, icon size: %d, %d", dpi, dpi, iconSizeX, iconSizeY);
-	MessageBoxA(NULL, ttt, "", 0);
+	int iconSizeX = pGetSystemMetricsForDpi ? GetSystemMetricsForDpi(SM_CXSMICON, dpi) : GetSystemMetrics(SM_CXSMICON);
+	int iconSizeY = pGetSystemMetricsForDpi ? GetSystemMetricsForDpi(SM_CYSMICON, dpi) : GetSystemMetrics(SM_CXSMICON);
 	if (g_lastIconDPI != dpi) {
 		// �č쐬
 		g_oldhIcon = g_hIcon;
