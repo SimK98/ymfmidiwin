@@ -582,6 +582,11 @@ static INT_PTR CALLBACK FlyoutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			SetEvent(g_hEventWakeUp);
 			return TRUE;
 		}
+		else if (LOWORD(wParam) == IDCANCEL)
+		{
+			ShowWindow(hDlg, SW_HIDE);
+			return TRUE;
+		}
 		break;
 	}
 	}
@@ -2058,6 +2063,15 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 			MSG msg;
 			while (GetMessage(&msg, nullptr, 0, 0))
 			{
+				if (g_hwndFlyout && IsWindowVisible(g_hwndFlyout) && IsDialogMessage(g_hwndFlyout, &msg))
+				{
+					continue; // 音量Flyoutが Esc / Tab 等を処理
+				}
+				if (g_dialoghWnd && IsWindowVisible(g_dialoghWnd) && IsDialogMessage(g_dialoghWnd, &msg))
+				{
+					continue; // Aboutダイアログが Esc / Tab 等を処理
+				}
+
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
