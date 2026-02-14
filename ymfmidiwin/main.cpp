@@ -350,8 +350,11 @@ void CreateTrayIcon(HWND hwnd)
 	ReleaseOldTrayIcon();
 
 	UINT dpi = GetDpiForWindow(hwnd);
-	int iconSizeX = GetSystemMetrics(SM_CXSMICON) * dpi / 96;
-	int iconSizeY = GetSystemMetrics(SM_CYSMICON) * dpi / 96;
+	int iconSizeX = GetSystemMetrics(SM_CXSMICON);
+	int iconSizeY = GetSystemMetrics(SM_CYSMICON);
+	char ttt[200] = { 0 };
+	sprintf_s(ttt, "DPI: %d, %d, icon size: %d, %d", dpi, dpi, iconSizeX, iconSizeY);
+	MessageBoxA(NULL, ttt, "", 0);
 	if (g_lastIconDPI != dpi) {
 		// �č쐬
 		g_oldhIcon = g_hIcon;
