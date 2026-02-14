@@ -22,6 +22,7 @@
 #define IDC_VOL_LABEL       1101
 #define IDC_VOL_SLIDER      1102
 #define IDC_MUTE_CHECK      1103
+#define IDC_VOL_CLOSE       1104
 
 #define IDD_ABOUT	2001
 #define IDD_FLYOUT	2002
