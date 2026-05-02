@@ -540,6 +540,15 @@ static INT_PTR CALLBACK FlyoutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		return TRUE;
 	}
 
+	case WM_SHOWWINDOW:
+	{
+		// 表示更新
+		Flyout_UpdateUI(hDlg);
+		HWND hSlider = GetDlgItem(hDlg, IDC_VOL_SLIDER);
+		if (hSlider) SetFocus(hSlider);
+		break;
+	}
+
 	case WM_ACTIVATE:
 		// フォーカスが外れたら閉じる
 		if (LOWORD(wParam) == WA_INACTIVE)
@@ -574,12 +583,20 @@ static INT_PTR CALLBACK FlyoutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 	case WM_COMMAND:
 	{
-		if (LOWORD(wParam) == IDC_MUTE_CHECK)
+		switch (LOWORD(wParam)) 
+		{
+		case IDC_MUTE_CHECK:
 		{
 			const bool checked = (SendMessageW(GetDlgItem(hDlg, IDC_MUTE_CHECK), BM_GETCHECK, 0, 0) == BST_CHECKED);
 			g_newMute = checked ? TRUE : FALSE;
 			g_requestVolumeUpdate = true;
 			SetEvent(g_hEventWakeUp);
+			return TRUE;
+		}
+
+		case IDC_VOL_CLOSE:
+		case IDCANCEL:
+			ShowWindow(hDlg, SW_HIDE);
 			return TRUE;
 		}
 		break;
@@ -2060,6 +2077,15 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 			MSG msg;
 			while (GetMessage(&msg, nullptr, 0, 0))
 			{
+				if (g_hwndFlyout && IsWindowVisible(g_hwndFlyout) && IsDialogMessage(g_hwndFlyout, &msg))
+				{
+					continue; // 音量Flyoutが Esc / Tab 等を処理
+				}
+				if (g_dialoghWnd && IsWindowVisible(g_dialoghWnd) && IsDialogMessage(g_dialoghWnd, &msg))
+				{
+					continue; // Aboutダイアログが Esc / Tab 等を処理
+				}
+
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}

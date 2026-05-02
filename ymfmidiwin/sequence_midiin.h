@@ -179,6 +179,10 @@ public:
         }
 
         m_closing = false;
+
+        // WORKAROUND: Win11 アップデートバグ回避 なぜかデバイス数を取得しないと開けない
+        UINT numDevs = midiInGetNumDevs();
+
         MMRESULT r = midiInOpen(
             &m_hMidiIn,
             portnum,

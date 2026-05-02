@@ -71,8 +71,8 @@ IDI_SLEEPICON ICON "ymfmidi_sleep.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,6,4,0
- PRODUCTVERSION 0,6,4,0
+ FILEVERSION 0,6,4,1
+ PRODUCTVERSION 0,6,4,1
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -88,9 +88,9 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "\0"
-            VALUE "FileVersion", "0, 6, 4, 0\0"
+            VALUE "FileVersion", "0, 6, 4, 1\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 SimK\0"
-            VALUE "ProductVersion", "0, 6, 4, 0\0"
+            VALUE "ProductVersion", "0, 6, 4, 1\0"
 #ifdef YMFMIDI_CONSOLE
             VALUE "FileDescription", "ymfmidi for Windows\0"
             VALUE "ProductName", "ymfmidi for Windows\0"
@@ -131,13 +131,14 @@ DEFPUSHBUTTON   "OK", IDOK, 70, 60, 60, 14
 END
 
 IDD_FLYOUT DIALOGEX 0, 0, 220, 40
-STYLE DS_SHELLFONT | WS_POPUP | WS_BORDER
+STYLE DS_SHELLFONT | WS_POPUP | WS_BORDER | WS_CLIPSIBLINGS
 EXSTYLE 0
 FONT 9, "MS Shell Dlg"
 BEGIN
-LTEXT           "Volume: ", IDC_VOL_LABEL, 8, 6, 200, 10
-CONTROL         "Mute", IDC_MUTE_CHECK, "Button", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 8, 16, 38, 12
+LTEXT           "Volume: ", IDC_VOL_LABEL, 8, 4, 100, 10
+CONTROL         "Mute", IDC_MUTE_CHECK, "Button", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 8, 16, 30, 12
 CONTROL         "", IDC_VOL_SLIDER, "msctls_trackbar32", WS_TABSTOP | WS_VISIBLE | WS_CHILD | TBS_HORZ | TBS_AUTOTICKS, 44, 16, 160, 18
+CONTROL         "Å~", IDC_VOL_CLOSE, "Button", WS_VISIBLE | WS_CHILD, 207, 1, 12, 12
 END
 
 #endif
