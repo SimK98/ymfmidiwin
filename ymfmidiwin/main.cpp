@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <signal.h>
 #include <windows.h>
+#include <commctrl.h>
 #include <getopt.h>
 #include <sstream>
 
@@ -83,6 +84,12 @@ static int g_srconvtype = SRC_SINC_FASTEST;
 static int g_wavOutputMarginMillisecond = 1000;
 static bool g_wavOutputMarginAuto = true;
 static int g_curLPFCutoff = 0;
+static float g_curVolume = 1.0f;
+static BOOL g_curMute = FALSE;
+static bool g_requestVolumeUpdate = false;
+static float g_newVolume = 0.0f;
+static BOOL g_newMute = TRUE;
+static GUID g_ctxVolume;
 
 #ifdef USE_SDL
 static void mainLoopSDL(OPLPlayer* player, int bufferSize, bool interactive);
@@ -342,9 +349,13 @@ void CreateTrayIcon(HWND hwnd)
 {
 	ReleaseOldTrayIcon();
 
+	typedef int (WINAPI* PFN_GetSystemMetricsForDpi)(int, UINT);
+	HMODULE hModUser32 = GetModuleHandle(L"user32.dll");
+	PFN_GetSystemMetricsForDpi pGetSystemMetricsForDpi = hModUser32 ? (PFN_GetSystemMetricsForDpi)GetProcAddress(hModUser32, "GetSystemMetricsForDpi") : nullptr;
+
 	UINT dpi = GetDpiForWindow(hwnd);
-	int iconSizeX = GetSystemMetrics(SM_CXSMICON) * dpi / 96;
-	int iconSizeY = GetSystemMetrics(SM_CYSMICON) * dpi / 96;
+	int iconSizeX = pGetSystemMetricsForDpi ? GetSystemMetricsForDpi(SM_CXSMICON, dpi) : GetSystemMetrics(SM_CXSMICON);
+	int iconSizeY = pGetSystemMetricsForDpi ? GetSystemMetricsForDpi(SM_CYSMICON, dpi) : GetSystemMetrics(SM_CXSMICON);
 	if (g_lastIconDPI != dpi) {
 		// 再作成
 		g_oldhIcon = g_hIcon;
@@ -467,6 +478,154 @@ int RestartApplication()
 	CloseHandle(pi.hThread);
 
 	return 0;
+}
+
+// Flyoutのダイアログハンドル
+static HWND g_hwndFlyout = nullptr;
+
+// 画面外にはみ出さないようにする
+static void ClampToWorkArea(RECT& rc)
+{
+	RECT wa{};
+	SystemParametersInfoW(SPI_GETWORKAREA, 0, &wa, 0);
+
+	int w = rc.right - rc.left;
+	int h = rc.bottom - rc.top;
+
+	if (rc.left < wa.left) rc.left = wa.left;
+	if (rc.top < wa.top)  rc.top = wa.top;
+	if (rc.left + w > wa.right)  rc.left = wa.right - w;
+	if (rc.top + h > wa.bottom) rc.top = wa.bottom - h;
+
+	rc.right = rc.left + w;
+	rc.bottom = rc.top + h;
+}
+
+static void Flyout_UpdateUI(HWND hDlg)
+{
+	int vol = (int)(g_curVolume * 100);
+	bool mute = false;
+
+	HWND hSlider = GetDlgItem(hDlg, IDC_VOL_SLIDER);
+	HWND hMute = GetDlgItem(hDlg, IDC_MUTE_CHECK);
+	HWND hLabel = GetDlgItem(hDlg, IDC_VOL_LABEL);
+
+	EnableWindow(hSlider, TRUE);
+	EnableWindow(hMute, TRUE);
+
+	wchar_t buf[64];
+	wsprintfW(buf, L"Volume: %d%%", vol);
+	SetWindowTextW(hLabel, buf);
+
+	SendMessageW(hSlider, TBM_SETPOS, TRUE, vol);
+	SendMessageW(hMute, BM_SETCHECK, mute ? BST_CHECKED : BST_UNCHECKED, 0);
+
+	g_newVolume = g_curVolume;
+	g_newMute = g_curMute;
+}
+
+// ダイアログプロシージャ
+static INT_PTR CALLBACK FlyoutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch (msg)
+	{
+	case WM_INITDIALOG:
+	{
+		// Trackbar 初期化
+		HWND hSlider = GetDlgItem(hDlg, IDC_VOL_SLIDER);
+		SendMessageW(hSlider, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
+		SendMessageW(hSlider, TBM_SETTICFREQ, 10, 0);
+
+		Flyout_UpdateUI(hDlg);
+		return TRUE;
+	}
+
+	case WM_ACTIVATE:
+		// フォーカスが外れたら閉じる
+		if (LOWORD(wParam) == WA_INACTIVE)
+			ShowWindow(hDlg, SW_HIDE);
+		return TRUE;
+
+	case WM_KEYDOWN:
+		if (wParam == VK_ESCAPE)
+		{
+			ShowWindow(hDlg, SW_HIDE);
+			return TRUE;
+		}
+		break;
+
+	case WM_HSCROLL:
+	{
+		HWND hSlider = GetDlgItem(hDlg, IDC_VOL_SLIDER);
+		if ((HWND)lParam == hSlider)
+		{
+			int pos = (int)SendMessageW(hSlider, TBM_GETPOS, 0, 0);
+			g_newVolume = pos / 100.0f;
+			g_requestVolumeUpdate = true;
+			SetEvent(g_hEventWakeUp);
+
+			// ラベルも更新
+			wchar_t buf[64];
+			wsprintfW(buf, L"Volume: %d%%", pos);
+			SetWindowTextW(GetDlgItem(hDlg, IDC_VOL_LABEL), buf);
+		}
+		return TRUE;
+	}
+
+	case WM_COMMAND:
+	{
+		if (LOWORD(wParam) == IDC_MUTE_CHECK)
+		{
+			const bool checked = (SendMessageW(GetDlgItem(hDlg, IDC_MUTE_CHECK), BM_GETCHECK, 0, 0) == BST_CHECKED);
+			g_newMute = checked ? TRUE : FALSE;
+			g_requestVolumeUpdate = true;
+			SetEvent(g_hEventWakeUp);
+			return TRUE;
+		}
+		break;
+	}
+	}
+	return FALSE;
+}
+
+// Flyoutを生成
+HWND CreateFlyoutDialog(HWND hwndOwner, HINSTANCE hInst)
+{
+	if (g_hwndFlyout) return g_hwndFlyout;
+
+	// モードレスダイアログとして作成
+	g_hwndFlyout = CreateDialogParamW(hInst, MAKEINTRESOURCEW(IDD_FLYOUT), hwndOwner, FlyoutDlgProc, 0);
+	return g_hwndFlyout;
+}
+
+// Flyoutを表示
+void ShowFlyoutAtCursor()
+{
+	if (!g_hwndFlyout) return;
+
+	Flyout_UpdateUI(g_hwndFlyout);
+
+	// ダイアログのサイズ取得
+	RECT rc{};
+	GetWindowRect(g_hwndFlyout, &rc);
+	int w = rc.right - rc.left;
+	int h = rc.bottom - rc.top;
+
+	POINT pt{};
+	GetCursorPos(&pt);
+
+	RECT target{
+		pt.x - w / 2,
+		pt.y - h - 10,
+		pt.x - w / 2 + w,
+		pt.y - h - 10 + h
+	};
+	ClampToWorkArea(target);
+
+	SetWindowPos(g_hwndFlyout, HWND_TOPMOST,
+		target.left, target.top, w, h,
+		SWP_SHOWWINDOW);
+	SetForegroundWindow(g_hwndFlyout);
 }
 
 INT_PTR CALLBACK AboutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM)
@@ -603,6 +762,10 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 			DestroyMenu(hMenu);
 			break;
+		}
+		case WM_LBUTTONUP:
+		{
+			ShowFlyoutAtCursor();
 		}
 		}
 		return 0;
@@ -1465,6 +1628,7 @@ void StartWasapiAudio(OPLPlayer *player)
 	IMMDevice* device = nullptr;
 	IAudioClient* audioClient = nullptr;
 	IAudioRenderClient* renderClient = nullptr;
+	ISimpleAudioVolume* simpleVol = nullptr;
 	WAVEFORMATEX* mixFmt = nullptr;
 	SRC_STATE* srconv = nullptr;
 	DeviceNotificationClient* notify = new DeviceNotificationClient();
@@ -1577,12 +1741,58 @@ void StartWasapiAudio(OPLPlayer *player)
 				goto finalize;
 			}
 
+			hr = CoCreateGuid(&g_ctxVolume);
+			hr = audioClient->GetService(IID_PPV_ARGS(&simpleVol));
+			if (FAILED(hr)) {
+				simpleVol = nullptr; // 音量調整不可
+			}
+			if (simpleVol) {
+				hr = simpleVol->GetMasterVolume(&g_curVolume);
+				if (FAILED(hr)) {
+					// 音量調整不可
+					simpleVol->Release();
+					simpleVol = nullptr; 
+				}
+				hr = simpleVol->GetMute(&g_curMute);
+				if (FAILED(hr)) {
+					// 音量調整不可
+					simpleVol->Release();
+					simpleVol = nullptr;
+				}
+			}
+
+			float lastVolume = g_curVolume;
+
 			DWORD taskIndex = 0;
 			hAvrt = AvSetMmThreadCharacteristicsW(L"Pro Audio", &taskIndex);
 			//if (hAvrt) AvSetMmThreadPriority(hAvrt, AVRT_PRIORITY_HIGH);
 
+			ULONGLONG lastVolumeGetTime = GetTickCount64();
+
 			while (g_running && !g_restart)
 			{
+				ULONGLONG curTime = GetTickCount64();
+				if (curTime - lastVolumeGetTime > 1000) {
+					simpleVol->GetMasterVolume(&g_curVolume);
+					simpleVol->GetMute(&g_curMute);
+					lastVolumeGetTime = curTime;
+				}
+				if (g_requestVolumeUpdate) {
+					g_requestVolumeUpdate = false;
+					if (g_curMute != g_newMute) {
+						// 一旦ミュート
+						simpleVol->SetMute(TRUE, &g_ctxVolume);
+					}
+					if (g_curVolume != g_newVolume) {
+						simpleVol->SetMasterVolume(g_newVolume, &g_ctxVolume);
+						g_curVolume = g_newVolume;
+					}
+					if (g_curMute != g_newMute) {
+						simpleVol->SetMute(g_newMute, &g_ctxVolume);
+						g_curMute = g_newMute;
+					}
+				}
+
 				if (g_paused)
 				{
 					Sleep(100);
@@ -1769,6 +1979,7 @@ finalize:
 		notify->Release();
 	}
 
+	if (simpleVol) simpleVol->Release();
 	if (renderClient) renderClient->Release();
 	if (audioClient) audioClient->Release();
 	if (device) device->Release();
@@ -1830,6 +2041,8 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 		else {
 			traymode = false;
 		}
+
+		CreateFlyoutDialog(g_hWnd, g_hInst);
 	}
 #endif
 	if (interactive && !traymode)
@@ -1934,6 +2147,11 @@ static void mainLoopWASAPI(OPLPlayer* player, int bufferSize, bool interactive, 
 			g_hIconSleep = nullptr;
 		}
 		ReleaseOldTrayIcon();
+	}
+	if (g_hwndFlyout)
+	{
+		DestroyWindow(g_hwndFlyout);
+		g_hwndFlyout = nullptr;
 	}
 #endif
 	quitPlayer(0);
