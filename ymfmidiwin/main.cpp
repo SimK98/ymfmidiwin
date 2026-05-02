@@ -1579,6 +1579,7 @@ void StartWasapiAudio(OPLPlayer *player)
 
 			DWORD taskIndex = 0;
 			hAvrt = AvSetMmThreadCharacteristicsW(L"Pro Audio", &taskIndex);
+			//if (hAvrt) AvSetMmThreadPriority(hAvrt, AVRT_PRIORITY_HIGH);
 
 			while (g_running && !g_restart)
 			{
@@ -1616,6 +1617,7 @@ void StartWasapiAudio(OPLPlayer *player)
 								goto finalize;
 							}
 							hAvrt = AvSetMmThreadCharacteristicsW(L"Pro Audio", &taskIndex);
+							if (hAvrt)AvSetMmThreadPriority(hAvrt, AVRT_PRIORITY_HIGH);
 
 							// バッファを0で埋めておく
 							UINT32 initPadding = 0;
