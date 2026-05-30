@@ -209,6 +209,32 @@ std::string GetExeDirectory()
 	return fullPath.substr(0, pos);
 }
 
+LPCTSTR GetCommandLineArguments(void)
+{
+	LPCTSTR cmd = GetCommandLine();
+
+	if (*cmd == '"')
+	{
+		cmd++;
+
+		while (*cmd && *cmd != '"')
+			cmd++;
+
+		if (*cmd == '"')
+			cmd++;
+	}
+	else
+	{
+		while (*cmd && *cmd != ' ' && *cmd != '\t')
+			cmd++;
+	}
+
+	while (*cmd == ' ' || *cmd == '\t')
+		cmd++;
+
+	return cmd;
+}
+
 BOOL WINAPI ConsoleHandler(DWORD ctrlType)
 {
 	switch (ctrlType)
@@ -535,6 +561,7 @@ static INT_PTR CALLBACK FlyoutDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		HWND hSlider = GetDlgItem(hDlg, IDC_VOL_SLIDER);
 		SendMessageW(hSlider, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
 		SendMessageW(hSlider, TBM_SETTICFREQ, 10, 0);
+		SendMessageW(hSlider, TBM_SETPAGESIZE, 0, 10);
 
 		Flyout_UpdateUI(hDlg);
 		return TRUE;
@@ -1258,6 +1285,11 @@ int main(int argc, char **argv)
 	}
 	else
 	{
+		if (memcmp(songPath, "//", 2) == 0) {
+			// Windows Updateのせいで強制終了されたときに復活させる
+			// 60秒以上連続実行されている場合のみ有効
+			RegisterApplicationRestart(GetCommandLineArguments(), RESTART_NO_CRASH | RESTART_NO_HANG | RESTART_NO_REBOOT);
+		}
 		g_hEventWakeUp = CreateEvent(NULL, FALSE, FALSE, NULL);
 #ifdef YMFMIDI_CONSOLE
 		SetConsoleCtrlHandler(ConsoleHandler, TRUE);
